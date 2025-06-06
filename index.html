@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASI平台专用AI助手 (最终完整版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background-color: #f8fafc;
+        }
+        .prose-custom {
+            color: #334155;
+            line-height: 1.7;
+        }
+        .prose-custom h3 {
+            color: #1e293b;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+         .prose-custom h4 {
+            color: #1e293b;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .prose-custom .content-block {
+            white-space: pre-line;
+            word-wrap: break-word;
+            background-color: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            position: relative;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #4f46e5;
+            width: 32px;
+            height: 32px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+        .mini-loader-inline {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4f46e5;
+            border-radius: 50%;
+            display: inline-block;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        #historyList li {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #historyList li:hover {
+            background-color: #f1f5f9;
+        }
+        .validation-msg {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .input-group-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.75rem;
+            line-height: 1rem;
+            background-color: #eef2ff;
+            color: #4338ca;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        .action-btn:hover {
+            background-color: #e0e7ff;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">ASI平台专用AI助手</h1>
+            <p class="mt-2 text-slate-600">上传/粘贴图片、输入信息与参考文案，一键生成。</p>
+        </header>
+
+        <div class="bg-white p-6 rounded-2xl shadow-lg relative">
+            <button id="clearAllBtn" class="absolute top-4 right-4 text-sm bg-slate-200 text-slate-600 py-1 px-3 rounded-lg hover:bg-slate-300 transition" title="清空所有输入和结果">
+                一键清空内容
+            </button>
+            <!-- Image Upload Section -->
+            <div class="mb-6">
+                <p class="input-group-title">1. 上传产品图片 (推荐)</p>
+                <div id="image-preview-container" class="hidden group relative w-48 h-48 mx-auto border-2 border-dashed rounded-lg flex items-center justify-center bg-slate-50">
+                    <img id="image-preview" class="max-w-full max-h-full rounded-md">
+                    <button id="remove-image-btn" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                </div>
+                 <div id="upload-box" class="mt-2">
+                    <label for="imageUpload" class="w-full cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-4 rounded-lg text-center transition block">
+                        点击上传或直接粘贴图片
+                    </label>
+                    <input type="file" id="imageUpload" class="hidden" accept="image/png, image/jpeg, image/webp">
+                </div>
+            </div>
+
+            <div class="border-t pt-6">
+                 <p class="input-group-title">2. 输入产品信息</p>
+                <div>
+                    <label for="productIdea" class="block text-sm font-medium text-slate-700 mb-1">产品名称/概念</label>
+                    <input type="text" id="productIdea" class="w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="例如：带Logo的旅行保温杯">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label for="productMaterial" class="block text-sm font-medium text-slate-700 mb-1">产品材质</label>
+                        <input type="text" id="productMaterial" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="例如：304不锈钢, 竹盖">
+                    </div>
+                    <div>
+                        <label for="productSpecs" class="block text-sm font-medium text-slate-700 mb-1">尺寸/规格</label>
+                        <input type="text" id="productSpecs" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="例如：20oz (600ml), 高20cm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="productScenarios" class="block text-sm font-medium text-slate-700 mb-1">核心卖点/使用场景</label>
+                        <textarea id="productScenarios" rows="3" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="例如：双层真空，保冷12小时保热6小时。"></textarea>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="referenceText" class="block text-sm font-medium text-slate-700 mb-1">参考文案 (选填)</label>
+                        <textarea id="referenceText" rows="4" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="请粘贴参考的标题、描述或卖点..."></textarea>
+                    </div>
+                     <div class="md:col-span-2">
+                        <label for="referenceKeywords" class="block text-sm font-medium text-slate-700 mb-1">参考关键词 (来自卖家精灵等, 选填)</label>
+                        <textarea id="referenceKeywords" rows="4" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="请粘贴关键词列表，用逗号或换行分隔..."></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex flex-col gap-4">
+                <button id="generateAllBtn" class="w-full bg-indigo-600 text-white font-semibold py-3 px-5 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105">
+                    🚀 一键生成并校验
+                </button>
+            </div>
+        </div>
+
+        <!-- Output Section -->
+        <div id="output" class="mt-8 bg-white p-6 rounded-2xl shadow-lg min-h-[200px]">
+            <div id="placeholder" class="text-center text-slate-500 flex flex-col items-center justify-center h-full">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-slate-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                <p>AI生成的内容将显示在这里...</p>
+            </div>
+            <div id="loader" class="loader hidden"></div>
+            <div id="result" class="prose-custom"></div>
+        </div>
+        
+        <!-- History Section -->
+        <div id="historySection" class="mt-8 bg-white p-6 rounded-2xl shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-slate-800">历史记录</h2>
+                <button id="clearHistoryBtn" class="text-sm bg-red-500 text-white py-1 px-3 rounded-lg hover:bg-red-600 transition">清空历史记录</button>
+            </div>
+            <ul id="historyList" class="space-y-2 max-h-60 overflow-y-auto">
+                <!-- History items will be injected here -->
+            </ul>
+        </div>
+
+         <!-- Message Box -->
+        <div id="messageBox" class="fixed top-5 right-5 bg-red-500 text-white py-2 px-4 rounded-lg shadow-lg hidden fade-in">
+            <p id="messageText"></p>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const generateAllBtn = document.getElementById('generateAllBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const outputDiv = document.getElementById('output');
+        const placeholder = document.getElementById('placeholder');
+        const loader = document.getElementById('loader');
+        const resultDiv = document.getElementById('result');
+        const messageBox = document.getElementById('messageBox');
+        const messageText = document.getElementById('messageText');
+        const historyList = document.getElementById('historyList');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        const imageUpload = document.getElementById('imageUpload');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const removeImageBtn = document.getElementById('remove-image-btn');
+        const uploadBox = document.getElementById('upload-box');
+        
+        let history = [];
+        let uploadedImageBase64 = null;
+        let uploadedImageType = null;
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', loadHistory);
+        generateAllBtn.addEventListener('click', () => handleGeneration('all'));
+        clearAllBtn.addEventListener('click', clearAllInputs);
+        clearHistoryBtn.addEventListener('click', clearHistory);
+        imageUpload.addEventListener('change', handleImageFile);
+        removeImageBtn.addEventListener('click', removeImage);
+        document.addEventListener('paste', handlePaste);
+        resultDiv.addEventListener('click', handleResultClick);
+
+
+        // --- Image Handling ---
+        function handleImageFile(event) {
+            const file = event.target.files[0];
+            if (file) processImageFile(file);
+        }
+        
+        function handlePaste(event) {
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            for (const item of items) {
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    event.preventDefault(); 
+                    processImageFile(item.getAsFile());
+                    break; 
+                }
+            }
+        }
+
+        function processImageFile(file) {
+             if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                uploadedImageBase64 = e.target.result.split(',')[1];
+                uploadedImageType = file.type;
+                imagePreview.src = e.target.result;
+                imagePreviewContainer.classList.remove('hidden');
+                uploadBox.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeImage() {
+            uploadedImageBase64 = null;
+            uploadedImageType = null;
+            imagePreview.src = '';
+            imageUpload.value = '';
+            imagePreviewContainer.classList.add('hidden');
+            uploadBox.classList.remove('hidden');
+        }
+        
+        // --- Content Handling ---
+        function clearAllInputs() {
+            removeImage();
+            document.getElementById('productIdea').value = '';
+            document.getElementById('productMaterial').value = '';
+            document.getElementById('productSpecs').value = '';
+            document.getElementById('productScenarios').value = '';
+            document.getElementById('referenceText').value = '';
+            document.getElementById('referenceKeywords').value = '';
+            resultDiv.innerHTML = '';
+            placeholder.classList.remove('hidden');
+            showMessage('所有内容已清空。', 'success');
+        }
+        
+        function handleResultClick(event) {
+            const regenBtn = event.target.closest('.regenerate-btn');
+            const copyBtn = event.target.closest('.copy-btn');
+            const translateBtn = event.target.closest('.translate-btn');
+
+             if (regenBtn) {
+                const type = regenBtn.dataset.type;
+                handleSingleRegeneration(type);
+            } else if (copyBtn) {
+                const contentBlock = copyBtn.closest('.section-wrapper').querySelector('.content-block');
+                const textToCopy = contentBlock.childNodes[0].nodeValue.trim();
+                copyToClipboard(textToCopy);
+            } else if (translateBtn) {
+                const contentBlock = translateBtn.closest('.section-wrapper').querySelector('.content-block');
+                const textToTranslate = contentBlock.childNodes[0].nodeValue.trim();
+                openGoogleTranslate(textToTranslate);
+            }
+        }
+        
+        function openGoogleTranslate(text) {
+            const encodedText = encodeURIComponent(text);
+            const url = `https://translate.google.com/?sl=en&tl=zh-CN&text=${encodedText}&op=translate`;
+            window.open(url, '_blank');
+        }
+
+        function copyToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showMessage('已复制到剪贴板！', 'success');
+            } catch (err) {
+                showMessage('复制失败！', 'error');
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        // --- Main Generation Handler ---
+        async function handleGeneration(type) {
+            const productIdea = document.getElementById('productIdea').value.trim();
+            if (!productIdea) {
+                showMessage('请输入产品名称/概念。', 'error');
+                return;
+            }
+            
+            const material = document.getElementById('productMaterial').value.trim();
+            const specs = document.getElementById('productSpecs').value.trim();
+            const scenarios = document.getElementById('productScenarios').value.trim();
+            const referenceText = document.getElementById('referenceText').value.trim();
+            const referenceKeywords = document.getElementById('referenceKeywords').value.trim();
+            const details = { material, specs, scenarios, referenceText, referenceKeywords };
+
+            const prompt = createPrompt(type, productIdea, details);
+            showLoading(true);
+            try {
+                const text = await callGeminiAPI(prompt, uploadedImageBase64, uploadedImageType);
+                displayResult(text, type, productIdea);
+                if (type === 'all') {
+                    await saveToHistory(productIdea, text, details, uploadedImageBase64, uploadedImageType);
+                }
+            } catch (error) {
+                console.error('API Call Error:', error);
+                displayResult(`抱歉，调用AI服务时出错：${error.message}`, 'error');
+                showMessage('AI服务调用失败，请稍后重试。', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        async function handleSingleRegeneration(type) {
+            const productIdea = document.getElementById('productIdea').value.trim();
+            if (!productIdea) {
+                showMessage('无法在没有产品概念的情况下重新生成。', 'error');
+                return;
+            }
+
+            const material = document.getElementById('productMaterial').value.trim();
+            const specs = document.getElementById('productSpecs').value.trim();
+            const scenarios = document.getElementById('productScenarios').value.trim();
+            const referenceText = document.getElementById('referenceText').value.trim();
+            const referenceKeywords = document.getElementById('referenceKeywords').value.trim();
+            const details = { material, specs, scenarios, referenceText, referenceKeywords };
+
+            const typeMapReverse = { 'title': '产品名称', 'summary': '概要', 'description': '产品描述', 'keywords': '关键词' };
+            const sectionTitle = typeMapReverse[type];
+            const sectionWrapper = document.getElementById(`section-${sectionTitle.replace(/\s/g, '-')}`);
+            if (!sectionWrapper) return;
+
+            const regenerateButton = sectionWrapper.querySelector('.regenerate-btn');
+            
+            if (regenerateButton) {
+                regenerateButton.innerHTML = `<span class="mini-loader-inline"></span>`;
+                regenerateButton.disabled = true;
+            }
+
+            const prompt = createPrompt(type, productIdea, details);
+
+            try {
+                const newText = await callGeminiAPI(prompt, uploadedImageBase64, uploadedImageType);
+                const contentBlock = sectionWrapper.querySelector('.content-block');
+                contentBlock.innerHTML = '';
+                
+                const textNode = document.createTextNode(newText.trim());
+                contentBlock.appendChild(textNode);
+                
+                const counterDiv = createCounterDiv(sectionTitle, newText.trim());
+                if (counterDiv) contentBlock.appendChild(counterDiv);
+
+                const validationResult = validateContent(sectionTitle, newText.trim());
+                const statusSpan = sectionWrapper.querySelector('.validation-status');
+                if(statusSpan) {
+                     statusSpan.innerHTML = getValidationStatus(validationResult);
+                }
+                
+                await updateHistoryContent(productIdea, sectionTitle, newText.trim());
+            } catch (error) {
+                 showMessage(`重新生成'${sectionTitle}'失败: ${error.message}`, 'error');
+            } finally {
+                 if (regenerateButton) {
+                    regenerateButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg><span>重新生成</span>`;
+                    regenerateButton.disabled = false;
+                }
+            }
+        }
+        
+        // --- Prompt Creation Engine ---
+        function createPrompt(type, product, details) {
+            let productDetailsSection = "\n**Product Details (Use these text details to supplement the provided image):**";
+            let hasDetails = false;
+            if (details.material) { productDetailsSection += `\n- Material: ${details.material}`; hasDetails = true; }
+            if (details.specs) { productDetailsSection += `\n- Specifications: ${details.specs}`; hasDetails = true; }
+            if (details.scenarios) { productDetailsSection += `\n- Key Selling Points/Scenarios: ${details.scenarios}`; hasDetails = true; }
+            if (details.referenceText) {
+                productDetailsSection += `\n- **Reference Text (Crucial):** """${details.referenceText}"""`;
+                hasDetails = true;
+            }
+             if (details.referenceKeywords) {
+                productDetailsSection += `\n- **Reference Keywords (High Priority):** """${details.referenceKeywords}"""`;
+                hasDetails = true;
+            }
+
+            const basePrompt = `You are an expert copywriter for the B2B promotional products platform ASI. Your task is to generate content based on the provided product image, supplementary text details, and especially the reference text/keywords. The reference materials are the most important source of inspiration.\n- **Product Concept:** ${product}${hasDetails ? productDetailsSection : ''}\nAnalyze all provided information. Extract key selling points and style from the reference, then rewrite and format everything according to the strict ASI rules below.`;
+            const titleRules = `1. Capitalize the first letter of each word (Title Case).\n2. The character limit for each name is 60 characters.\n3. Do not repeat any words within a single name.`;
+            const summaryRules = `1. Extract and summarize the product's key highlights.\n2. The character limit is 130 characters.`;
+            const descriptionRules = `1. The character limit is 800 characters.\n2. Use only standard English punctuation.\n3. Do not include any price-related language.\n4. Structure: material, function, scenarios, advantages, assurance statement. Base the content on all provided information, especially the reference text.`;
+            const keywordRules = `1. **Crucially, use the "Reference Keywords" as the primary source.** Clean them up to meet ASI rules (Title Case, no plurals, no symbols, etc.). \n2. **Actively identify and exclude any potential brand names, trademarks, or company names from the reference list.**\n3. If the cleaned reference keywords are not enough, generate more relevant, non-brand keywords to reach 30 groups.\n4. Each group must be comma and space separated, under 30 chars, and 2-3 words.\n5. Do not reuse phrases from the name, summary, or description.\n6. No subjective praise or keyword stuffing.`;
+            
+            switch(type) {
+                case 'title':
+                    return `${basePrompt}\n\n**Task: Generate 5 product names.**\n**Rules:**\n${titleRules}\nOutput only the list of names, each on a new line.`;
+                case 'summary':
+                    return `${basePrompt}\n\n**Task: Write a product summary.**\n**Rules:**\n${summaryRules}\nOutput only the summary text.`;
+                case 'description':
+                     return `${basePrompt}\n\n**Task: Write a compelling product description.**\n**Rules:**\n${descriptionRules}\nOutput only the description text.`;
+                case 'keywords':
+                     return `${basePrompt}\n\n**Task: Generate 30 relevant keyword groups.**\n**Rules:**\n${keywordRules}\nOutput only the comma-separated list of keywords.`;
+                case 'all':
+                default:
+                     return `${basePrompt}\n\n**Task: Generate the product name, summary, description, and keywords.**\n**Output Structure:**\n### 产品名称\n---\n[Generate 5 names here]\n\n### 概要\n---\n[Generate one summary here]\n\n### 产品描述\n---\n[Generate one description here]\n\n### 关键词\n---\n[Generate 30 keyword groups here]\n\n**Rules:**\n- Title:${titleRules}\n- Summary:${summaryRules}\n- Desc:${descriptionRules}\n- Keywords:${keywordRules}`;
+            }
+        }
+        
+        // --- Validation Engine ---
+        function validateContent(type, text) {
+            const results = { isValid: true, messages: [] };
+            switch (type) {
+                case '产品名称':
+                    break;
+                case '概要':
+                     if (text.length > 130) { results.isValid = false; results.messages.push(`概要超长 (${text.length}/130)`); }
+                    break;
+                case '产品描述':
+                    if (text.length > 800) { results.isValid = false; results.messages.push(`描述超长 (${text.length}/800)`); }
+                    if (/[，。！？；：]/.test(text)) { results.isValid = false; results.messages.push(`含中文标点`); }
+                    break;
+                case '关键词':
+                    const keywords = text.split(',').map(k => k.trim());
+                    if (keywords.length < 30) { results.isValid = false; results.messages.push(`组数: ${keywords.length} (应为30)`); }
+                    keywords.forEach(kw => { if (kw.length > 30) { results.isValid = false; results.messages.push(`关键词超长 (${kw.length}/30)`); } });
+                    break;
+            }
+            return results;
+        }
+        
+        function getValidationStatus(validationResult) {
+            if (!validationResult.isValid) {
+                const message = validationResult.messages.join(', ');
+                return `<span class="validation-msg text-red-500">(⚠️ ${message})</span>`;
+            }
+            return '<span class="text-green-500">✅</span>';
+        }
+
+        function createCounterDiv(title, content) {
+            let countHtml = '';
+             switch (title) {
+                case '概要':
+                    countHtml = `${content.length} / 130`;
+                    break;
+                case '产品描述':
+                    countHtml = `${content.length} / 800`;
+                    break;
+                case '关键词':
+                    const keywordCount = content.split(',').length;
+                    countHtml = `${keywordCount} / 30 组`;
+                    break;
+            }
+
+            if (countHtml) {
+                const countDiv = document.createElement('div');
+                countDiv.className = 'absolute bottom-2 right-2 text-xs text-slate-400';
+                countDiv.textContent = countHtml;
+                return countDiv;
+            }
+            return null;
+        }
+
+        // --- History Management ---
+        async function compressImage(src, maxWidth = 200, maxHeight = 200, quality = 0.7) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.src = src;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+                    } else {
+                        if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    const [header, base64Data] = dataUrl.split(',');
+                    resolve({ base64: base64Data, type: 'image/jpeg' });
+                };
+                img.onerror = (error) => reject(error);
+            });
+        }
+        
+        function loadHistory() {
+            try {
+                const storedHistory = localStorage.getItem('asiProductHistory');
+                if (storedHistory) { history = JSON.parse(storedHistory); renderHistory(); }
+            } catch (e) { console.error("Failed to load history:", e); localStorage.removeItem('asiProductHistory'); }
+        }
+        function renderHistory() {
+            historyList.innerHTML = '';
+            if(history.length === 0){
+                historyList.innerHTML = `<li class="text-slate-400 text-center text-sm p-4">暂无历史记录</li>`;
+                return;
+            }
+            history.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = 'p-3 rounded-lg border border-slate-200';
+                li.textContent = item.product;
+                li.dataset.index = index;
+                li.addEventListener('click', () => viewHistoryItem(index));
+                historyList.appendChild(li);
+            });
+        }
+        async function saveToHistory(product, content, details, imageBase64, imageType) {
+            const existingIndex = history.findIndex(item => item.product === product);
+            if (existingIndex > -1) history.splice(existingIndex, 1);
+            
+            let compressedImage = { base64: null, type: null };
+            if (imageBase64 && imageType) {
+                try { compressedImage = await compressImage(`data:${imageType};base64,${imageBase64}`); } catch (e) { console.error("Image compression failed:", e); }
+            }
+
+            history.unshift({ product, content, details, imageBase64: compressedImage.base64, imageType: compressedImage.type, originalImageBase64: imageBase64, originalImageType: imageType });
+
+            try {
+                if (history.length > 50) history.pop();
+                localStorage.setItem('asiProductHistory', JSON.stringify(history));
+            } catch (e) { showMessage('历史记录存储失败，可能已满。', 'error'); history.shift(); }
+            renderHistory();
+        }
+        async function updateHistoryContent(product, sectionTitle, newContent) {
+             const existingIndex = history.findIndex(item => item.product === product);
+            if (existingIndex > -1) {
+                const currentItem = history[existingIndex];
+                const regex = new RegExp(`(### ${sectionTitle}\\n---)([\\s\\S]*?)(?=\\n###|$)`);
+                const updatedContent = currentItem.content.replace(regex, `$1\n${newContent.trim()}\n`);
+                history[existingIndex].content = updatedContent;
+                localStorage.setItem('asiProductHistory', JSON.stringify(history));
+            }
+        }
+        function viewHistoryItem(index) {
+            const item = history[index];
+            if (item) {
+                clearAllInputs();
+                
+                document.getElementById('productIdea').value = item.product || '';
+                if(item.details){
+                    document.getElementById('productMaterial').value = item.details.material || '';
+                    document.getElementById('productSpecs').value = item.details.specs || '';
+                    document.getElementById('productScenarios').value = item.details.scenarios || '';
+                    document.getElementById('referenceText').value = item.details.referenceText || '';
+                    document.getElementById('referenceKeywords').value = item.details.referenceKeywords || '';
+                }
+
+                const imageB64 = item.originalImageBase64 || item.imageBase64;
+                const imageT = item.originalImageType || item.imageType;
+                if (imageB64 && imageT) {
+                    const dataUrl = `data:${imageT};base64,${imageB64}`;
+                    processImageFile(dataURLtoFile(dataUrl, item.product)); 
+                }
+                
+                displayResult(item.content, 'all', item.product);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+        function clearHistory() {
+            history = [];
+            localStorage.removeItem('asiProductHistory');
+            renderHistory();
+            showMessage('历史记录已清空。', 'success');
+        }
+
+        // --- UI Update Functions ---
+        function showLoading(isLoading) {
+            loader.classList.toggle('hidden', !isLoading);
+            if (isLoading) { placeholder.classList.add('hidden'); resultDiv.innerHTML = ''; }
+        }
+        
+        function displayResult(text, type, productIdea = '') {
+            placeholder.classList.add('hidden');
+            let html = `<h3>${productIdea}</h3>`;
+            if (type === 'error') {
+                html += `<div class="content-block text-red-600">${text}</div>`;
+            } else {
+                const sections = text.split(/### (.*?)\n---/g).filter(s => s.trim() !== '');
+                const typeMap = { '产品名称': 'title', '概要': 'summary', '产品描述': 'description', '关键词': 'keywords' };
+
+                for (let i = 0; i < sections.length; i += 2) {
+                    const title = sections[i].trim();
+                    const content = sections[i + 1].trim();
+                    const validationResult = validateContent(title, content);
+                    const status = getValidationStatus(validationResult);
+                    const regenType = typeMap[title];
+                    
+                    const translateButton = `<button class="translate-btn action-btn" title="在谷歌翻译中打开"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M4.545 6.714 4.11 8H3l1.862-5h1.284L8 8H6.833l-.435-1.286zm1.634-2.736L5.5 1.956h-.043l-.697 2.022z"/><path d="M0 2a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v3h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-3H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zm7.138 9.995c.193.301.402.583.63.846-.748.575-1.673 1.001-2.768 1.292.178.217.451.635.555.867 1.125-.359 2.08-.844 2.886-1.494.17.302.278.632.365.992.508-.283.92-1.075 1.21-1.96.28-.85.455-1.85.508-2.934h-1.025c-.05.88-.17 1.56-.34 2.11a2.7 2.7 0 0 1-.62 1.087c-.22.252-.494.456-.79.612z"/></svg><span>翻译</span></button>`;
+                    const copyButton = `<button class="copy-btn action-btn" title="复制内容"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M5.5 1a.5.5 0 0 1 .5.5V2h6v-.5a.5.5 0 0 1 1 0V2A1.5 1.5 0 0 1 11.5 3.5h-7A1.5 1.5 0 0 1 3 2V1.5a.5.5 0 0 1 .5-.5zM5 3.5a.5.5 0 0 0 .5.5h5a.5.5 0 0 0 0-1h-5a.5.5 0 0 0-.5.5"/></svg><span>复制</span></button>`;
+                    const regenButton = `<button class="regenerate-btn action-btn" data-type="${regenType}" title="重新生成此版块"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg><span>重新生成</span></button>`;
+                    const counterDiv = createCounterDiv(title, content);
+
+                    html += `<div class="section-wrapper" id="section-${title.replace(/\s/g, '-')}">
+                                <h4>
+                                    <span>${title}</span>
+                                    <span class="validation-status">${status}</span>
+                                    <div class="ml-auto flex items-center gap-2">${translateButton}${copyButton}${regenButton}</div>
+                                </h4>
+                                <div class="content-block">
+                                    ${content}
+                                    ${counterDiv ? counterDiv.outerHTML : ''}
+                                </div>
+                             </div>`;
+                }
+            }
+            resultDiv.innerHTML = html;
+        }
+
+        function showMessage(message, type = 'success') {
+            messageText.textContent = message;
+            messageBox.className = 'fixed top-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg fade-in';
+            messageBox.classList.add(type === 'error' ? 'bg-red-500' : 'bg-green-500');
+            setTimeout(() => { messageBox.classList.add('hidden'); }, 3000);
+        }
+
+        function dataURLtoFile(dataurl, filename) {
+            var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+                bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+            while(n--){ u8arr[n] = bstr.charCodeAt(n); }
+            return new File([u8arr], filename, {type:mime});
+        }
+        
+        // --- Gemini API Call ---
+        async function callGeminiAPI(prompt, base64Data, mimeType) {
+            const apiKey = "AIzaSyCc56BzHDzOudZe2x2fvjCF43BtwCMAXBs";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const userParts = [{ text: prompt }];
+            if (base64Data && mimeType) { userParts.unshift({ inlineData: { mimeType: mimeType, data: base64Data } }); }
+            const payload = {
+                contents: [{ role: "user", parts: userParts }],
+                generationConfig: { temperature: 0.6, topP: 1.0, maxOutputTokens: 8192 }
+            };
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`API request failed: ${response.status} ${await response.text()}`);
+            const result = await response.json();
+            const candidate = result.candidates?.[0];
+            if (candidate?.content?.parts?.[0]?.text) {
+                if (candidate.finishReason === 'MAX_TOKENS') {
+                    console.warn("API response was truncated due to MAX_TOKENS. Displaying partial result.");
+                 } else if (candidate.finishReason && candidate.finishReason !== 'STOP') { 
+                    throw new Error(`Generation stopped: ${candidate.finishReason}`); 
+                 }
+                return candidate.content.parts[0].text.trim();
+            } else {
+                if(candidate?.finishReason === 'SAFETY') { throw new Error("内容可能违反了安全策略。"); }
+                throw new Error("AI未能生成有效内容。");
+            }
+        }
+    </script>
+</body>
+</html>
