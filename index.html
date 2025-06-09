@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASI平台专用AI助手 (最终完整版)</title>
+    <title>ASI平台专用AI助手 (最终修复版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Add SheetJS library for Excel export -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'Inter', 'Noto Sans SC', sans-serif;
@@ -72,11 +74,10 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        #historyList li {
-            cursor: pointer;
+        .history-item {
             transition: background-color 0.2s;
         }
-        #historyList li:hover {
+        .history-item:hover {
             background-color: #f1f5f9;
         }
         .validation-msg {
@@ -103,100 +104,169 @@
             border-radius: 0.375rem;
             transition: background-color 0.2s;
             cursor: pointer;
+            border: none;
         }
         .action-btn:hover {
             background-color: #e0e7ff;
         }
+        .action-btn:disabled {
+            background-color: #e2e8f0;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Lock feature styles */
+        .section-wrapper.locked {
+            background-color: #f0f5ff; /* A light blue to indicate locked */
+            border-radius: 0.5rem;
+            padding: 2px 8px;
+            margin: -2px -8px;
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
-    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
-        
-        <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">ASI平台专用AI助手</h1>
-            <p class="mt-2 text-slate-600">上传/粘贴图片、输入信息与参考文案，一键生成。</p>
-        </header>
+<body class="bg-slate-100">
+    <header class="text-center py-6 px-4">
+        <h1 class="text-3xl md:text-4xl font-bold text-slate-900">ASI平台专用AI助手</h1>
+        <p class="mt-2 text-slate-600">上传/粘贴图片、输入信息与参考文案，一键生成。</p>
+    </header>
 
-        <div class="bg-white p-6 rounded-2xl shadow-lg relative">
-            <button id="clearAllBtn" class="absolute top-4 right-4 text-sm bg-slate-200 text-slate-600 py-1 px-3 rounded-lg hover:bg-slate-300 transition" title="清空所有输入和结果">
-                一键清空内容
-            </button>
-            <!-- Image Upload Section -->
-            <div class="mb-6">
-                <p class="input-group-title">1. 上传产品图片 (推荐)</p>
-                <div id="image-preview-container" class="hidden group relative w-48 h-48 mx-auto border-2 border-dashed rounded-lg flex items-center justify-center bg-slate-50">
-                    <img id="image-preview" class="max-w-full max-h-full rounded-md">
-                    <button id="remove-image-btn" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+    <main class="lg:grid lg:grid-cols-2 lg:gap-8 p-4">
+        <!-- Left Column (Inputs) -->
+        <div class="lg:sticky lg:top-4 self-start">
+             <div class="bg-white p-6 rounded-2xl shadow-lg relative flex flex-col h-[848px]">
+                <!-- NEW: Header for the left panel -->
+                <div class="flex justify-between items-center pb-4 border-b mb-4 flex-shrink-0">
+                    <h2 class="text-xl font-bold text-slate-800">产品信息</h2>
+                    <div class="flex items-center gap-3">
+                         <button id="clearAllBtn" class="text-sm bg-slate-200 text-slate-600 py-2 px-3 rounded-lg hover:bg-slate-300 transition" title="清空所有输入和结果">
+                            清空内容
+                        </button>
+                        <button id="generateAllBtn" class="text-sm bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105">
+                            一键生成
+                        </button>
+                    </div>
                 </div>
-                 <div id="upload-box" class="mt-2">
-                    <label for="imageUpload" class="w-full cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-4 rounded-lg text-center transition block">
-                        点击上传或直接粘贴图片
-                    </label>
-                    <input type="file" id="imageUpload" class="hidden" accept="image/png, image/jpeg, image/webp">
-                </div>
-            </div>
+                 <div class="flex-grow overflow-y-auto custom-scrollbar pr-3 -mr-3">
+                    <!-- Image Upload Section -->
+                    <div class="mb-6">
+                        <p class="input-group-title">1. 上传产品图片 (推荐)</p>
+                        <div id="image-preview-container" class="hidden group relative w-48 h-48 mx-auto border-2 border-dashed rounded-lg flex items-center justify-center bg-slate-50">
+                            <img id="image-preview" class="max-w-full max-h-full rounded-md">
+                            <button id="remove-image-btn" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                        </div>
+                         <div id="upload-box" class="mt-2">
+                            <label for="imageUpload" class="w-full cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-4 rounded-lg text-center transition block">
+                                点击上传或直接粘贴图片
+                            </label>
+                            <input type="file" id="imageUpload" class="hidden" accept="image/png, image/jpeg, image/webp">
+                        </div>
+                    </div>
 
-            <div class="border-t pt-6">
-                 <p class="input-group-title">2. 输入产品信息</p>
-                <div>
-                    <label for="productIdea" class="block text-sm font-medium text-slate-700 mb-1">产品名称/概念</label>
-                    <input type="text" id="productIdea" class="w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="例如：带Logo的旅行保温杯">
+                    <div class="border-t pt-6">
+                         <p class="input-group-title">2. 输入产品信息</p>
+                        <div>
+                            <label for="productIdea" class="block text-sm font-medium text-slate-700 mb-1">产品名称/概念</label>
+                            <input type="text" id="productIdea" class="w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="例如：带Logo的旅行保温杯">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <div>
+                                <label for="productMaterial" class="block text-sm font-medium text-slate-700 mb-1">产品材质</label>
+                                <input type="text" id="productMaterial" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="例如：304不锈钢, 竹盖">
+                            </div>
+                            <div>
+                                <label for="productSpecs" class="block text-sm font-medium text-slate-700 mb-1">尺寸/规格</label>
+                                <input type="text" id="productSpecs" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="例如：20oz (600ml), 高20cm">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label for="productScenarios" class="block text-sm font-medium text-slate-700 mb-1">核心卖点/使用场景</label>
+                                <textarea id="productScenarios" rows="3" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="例如：双层真空，保冷12小时保热6小时。"></textarea>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label for="referenceText" class="block text-sm font-medium text-slate-700 mb-1">参考文案 (选填)</label>
+                                <textarea id="referenceText" rows="4" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="请粘贴参考的标题、描述或卖点..."></textarea>
+                            </div>
+                             <div class="md:col-span-2">
+                                <label for="referenceKeywords" class="block text-sm font-medium text-slate-700 mb-1">参考关键词 (来自卖家精灵等, 选填)</label>
+                                <textarea id="referenceKeywords" rows="4" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="请粘贴关键词列表，用逗号或换行分隔..."></textarea>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div>
-                        <label for="productMaterial" class="block text-sm font-medium text-slate-700 mb-1">产品材质</label>
-                        <input type="text" id="productMaterial" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="例如：304不锈钢, 竹盖">
-                    </div>
-                    <div>
-                        <label for="productSpecs" class="block text-sm font-medium text-slate-700 mb-1">尺寸/规格</label>
-                        <input type="text" id="productSpecs" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="例如：20oz (600ml), 高20cm">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="productScenarios" class="block text-sm font-medium text-slate-700 mb-1">核心卖点/使用场景</label>
-                        <textarea id="productScenarios" rows="3" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="例如：双层真空，保冷12小时保热6小时。"></textarea>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="referenceText" class="block text-sm font-medium text-slate-700 mb-1">参考文案 (选填)</label>
-                        <textarea id="referenceText" rows="4" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="请粘贴参考的标题、描述或卖点..."></textarea>
-                    </div>
-                     <div class="md:col-span-2">
-                        <label for="referenceKeywords" class="block text-sm font-medium text-slate-700 mb-1">参考关键词 (来自卖家精灵等, 选填)</label>
-                        <textarea id="referenceKeywords" rows="4" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="请粘贴关键词列表，用逗号或换行分隔..."></textarea>
+             </div>
+        </div>
+
+        <!-- Right Column (Outputs) -->
+        <div class="mt-8 lg:mt-0 flex flex-col h-[848px] gap-8">
+            <!-- History Section -->
+            <div id="historySection" class="bg-white p-6 rounded-2xl shadow-lg flex-shrink-0">
+                <div id="historyHeader" class="flex justify-between items-center cursor-pointer">
+                    <h2 class="text-xl font-bold text-slate-800">历史记录</h2>
+                    <div class="flex items-center gap-2">
+                        <button id="exportAllBtn" class="text-sm bg-green-100 text-green-700 font-medium py-1 px-3 rounded-lg hover:bg-green-200 transition">批量导出</button>
+                        <button id="clearHistoryBtn" class="text-sm bg-red-100 text-red-700 font-medium py-1 px-3 rounded-lg hover:bg-red-200 transition">清空历史</button>
+                        <button id="toggleHistoryBtn" class="p-1 rounded-full hover:bg-slate-200 transition">
+                            <svg id="history-arrow" class="w-5 h-5 text-slate-600 transition-transform transform -rotate-90" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
+                <ul id="historyList" class="space-y-2 max-h-0 overflow-y-auto mt-0 transition-all duration-500 ease-in-out custom-scrollbar">
+                    <!-- History items will be injected here -->
+                </ul>
             </div>
             
-            <div class="mt-6 flex flex-col gap-4">
-                <button id="generateAllBtn" class="w-full bg-indigo-600 text-white font-semibold py-3 px-5 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105">
-                    🚀 一键生成并校验
-                </button>
+            <!-- Output Section -->
+            <div id="output" class="bg-white p-6 rounded-2xl shadow-lg flex-grow min-h-0 flex flex-col">
+                 <div class="overflow-y-auto custom-scrollbar -mr-3 pr-3 h-full">
+                    <div id="placeholder" class="text-center text-slate-500 flex flex-col items-center justify-center h-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-slate-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                        <p>AI生成的内容将显示在这里...</p>
+                    </div>
+                    <div id="loader" class="loader hidden"></div>
+                    <div id="result" class="prose-custom"></div>
+                </div>
             </div>
-        </div>
-
-        <!-- Output Section -->
-        <div id="output" class="mt-8 bg-white p-6 rounded-2xl shadow-lg min-h-[200px]">
-            <div id="placeholder" class="text-center text-slate-500 flex flex-col items-center justify-center h-full">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-slate-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
-                <p>AI生成的内容将显示在这里...</p>
-            </div>
-            <div id="loader" class="loader hidden"></div>
-            <div id="result" class="prose-custom"></div>
         </div>
         
-        <!-- History Section -->
-        <div id="historySection" class="mt-8 bg-white p-6 rounded-2xl shadow-lg">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-slate-800">历史记录</h2>
-                <button id="clearHistoryBtn" class="text-sm bg-red-500 text-white py-1 px-3 rounded-lg hover:bg-red-600 transition">清空历史记录</button>
-            </div>
-            <ul id="historyList" class="space-y-2 max-h-60 overflow-y-auto">
-                <!-- History items will be injected here -->
-            </ul>
-        </div>
-
          <!-- Message Box -->
         <div id="messageBox" class="fixed top-5 right-5 bg-red-500 text-white py-2 px-4 rounded-lg shadow-lg hidden fade-in">
             <p id="messageText"></p>
+        </div>
+
+        <!-- API Key Modal -->
+        <div id="apiKeyModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-50 flex items-center justify-center z-50 px-4">
+            <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md m-4">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">配置 API 密钥</h2>
+                <p id="apiKeyMessage" class="text-slate-600 mb-4">为了使用AI功能，请输入您的 Google Gemini API 密钥。密钥将安全地存储在您的浏览器中。</p>
+                <div class="mb-6">
+                    <label for="apiKeyInput" class="block text-sm font-medium text-slate-700 mb-2">Gemini API Key</label>
+                    <input type="password" id="apiKeyInput" class="w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" placeholder="在此输入您的密钥">
+                </div>
+                <div class="text-xs text-slate-500 mb-8">
+                    不知道如何获取？ 
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="font-medium text-indigo-600 hover:text-indigo-500">
+                        点击此处前往 Google AI Studio 获取
+                    </a>
+                </div>
+                <div class="mt-8 flex justify-end">
+                    <button id="saveApiKeyBtn" class="bg-indigo-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition">保存密钥</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -211,27 +281,86 @@
         const messageBox = document.getElementById('messageBox');
         const messageText = document.getElementById('messageText');
         const historyList = document.getElementById('historyList');
+        const historyHeader = document.getElementById('historyHeader');
+        const historyArrow = document.getElementById('history-arrow');
         const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        const exportAllBtn = document.getElementById('exportAllBtn');
         const imageUpload = document.getElementById('imageUpload');
         const imagePreviewContainer = document.getElementById('image-preview-container');
         const imagePreview = document.getElementById('image-preview');
         const removeImageBtn = document.getElementById('remove-image-btn');
         const uploadBox = document.getElementById('upload-box');
+        const apiKeyModal = document.getElementById('apiKeyModal');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+        const apiKeyMessage = document.getElementById('apiKeyMessage');
         
+        // --- Global Variables & Constants ---
         let history = [];
         let uploadedImageBase64 = null;
         let uploadedImageType = null;
 
+        const REGEN_TYPE_MAP = { 
+            'title': '产品名称', 
+            'description': '产品描述', 
+            'summary': '概要', 
+            'keywords': '关键词' 
+        };
+        
+        const ENGLISH_TITLE_MAP = {
+            'Title': '产品名称',
+            'Description': '产品描述',
+            'Summary': '概要',
+            'Keywords': '关键词'
+        };
+
+        const REVERSE_ENGLISH_TITLE_MAP = Object.fromEntries(Object.entries(ENGLISH_TITLE_MAP).map(a => a.reverse()));
+
+
         // --- Event Listeners ---
-        document.addEventListener('DOMContentLoaded', loadHistory);
+        document.addEventListener('DOMContentLoaded', initApp);
         generateAllBtn.addEventListener('click', () => handleGeneration('all'));
         clearAllBtn.addEventListener('click', clearAllInputs);
         clearHistoryBtn.addEventListener('click', clearHistory);
+        exportAllBtn.addEventListener('click', () => exportToExcel(history));
+        historyHeader.addEventListener('click', (e) => {
+            if (!e.target.closest('#clearHistoryBtn') && !e.target.closest('#exportAllBtn')) {
+                toggleHistory();
+            }
+        });
+        historyList.addEventListener('click', handleHistoryListClick);
         imageUpload.addEventListener('change', handleImageFile);
         removeImageBtn.addEventListener('click', removeImage);
         document.addEventListener('paste', handlePaste);
         resultDiv.addEventListener('click', handleResultClick);
+        saveApiKeyBtn.addEventListener('click', saveApiKey);
 
+
+        // --- App Initialization ---
+        function initApp() {
+            loadHistory();
+            const savedKey = localStorage.getItem('geminiApiKey');
+            if (!savedKey) {
+                showApiKeyModal('欢迎使用！请先配置您的API密钥。');
+            }
+        }
+
+        // --- API Key Modal Logic ---
+        function showApiKeyModal(message) {
+            apiKeyMessage.textContent = message || '为了使用AI功能，请输入您的 Google Gemini API 密钥。密钥将安全地存储在您的浏览器中。';
+            apiKeyModal.classList.remove('hidden');
+        }
+
+        function saveApiKey() {
+            const key = apiKeyInput.value.trim();
+            if (key) {
+                localStorage.setItem('geminiApiKey', key);
+                apiKeyModal.classList.add('hidden');
+                showMessage('API密钥已保存！', 'success');
+            } else {
+                showMessage('请输入有效的API密钥。', 'error');
+            }
+        }
 
         // --- Image Handling ---
         function handleImageFile(event) {
@@ -283,6 +412,7 @@
             document.getElementById('referenceKeywords').value = '';
             resultDiv.innerHTML = '';
             placeholder.classList.remove('hidden');
+            generateAllBtn.innerHTML = '一键生成'; // Reset button text
             showMessage('所有内容已清空。', 'success');
         }
         
@@ -290,21 +420,44 @@
             const regenBtn = event.target.closest('.regenerate-btn');
             const copyBtn = event.target.closest('.copy-btn');
             const translateBtn = event.target.closest('.translate-btn');
+            const lockBtn = event.target.closest('.lock-btn');
 
              if (regenBtn) {
                 const type = regenBtn.dataset.type;
                 handleSingleRegeneration(type);
             } else if (copyBtn) {
                 const contentBlock = copyBtn.closest('.section-wrapper').querySelector('.content-block');
-                const textToCopy = contentBlock.childNodes[0].nodeValue.trim();
+                const textToCopy = getCleanTextFromBlock(contentBlock);
                 copyToClipboard(textToCopy);
             } else if (translateBtn) {
                 const contentBlock = translateBtn.closest('.section-wrapper').querySelector('.content-block');
-                const textToTranslate = contentBlock.childNodes[0].nodeValue.trim();
+                const textToTranslate = getCleanTextFromBlock(contentBlock);
                 openGoogleTranslate(textToTranslate);
+            } else if (lockBtn) {
+                toggleLock(lockBtn);
             }
         }
         
+        function getCleanTextFromBlock(contentBlock) {
+            if (!contentBlock) return '';
+            return contentBlock.childNodes[0] ? contentBlock.childNodes[0].nodeValue.trim() : '';
+        }
+
+        function toggleLock(lockBtn) {
+            const section = lockBtn.closest('.section-wrapper');
+            const isLocked = section.classList.toggle('locked');
+            const regenBtn = section.querySelector('.regenerate-btn');
+            
+            lockBtn.innerHTML = isLocked ? 
+                `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2"/></svg><span>锁定</span>` :
+                `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M11 1a2 2 0 0 0-2 2v4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h5V3a3 3 0 0 1 6 0v4a.5.5 0 0 1-1 0V3a2 2 0 0 0-2-2"/></svg><span>解锁</span>`;
+            
+            lockBtn.setAttribute('title', isLocked ? '点击解锁' : '点击锁定');
+            if (regenBtn) {
+                regenBtn.disabled = isLocked;
+            }
+        }
+
         function openGoogleTranslate(text) {
             const encodedText = encodeURIComponent(text);
             const url = `https://translate.google.com/?sl=en&tl=zh-CN&text=${encodedText}&op=translate`;
@@ -333,31 +486,79 @@
                 showMessage('请输入产品名称/概念。', 'error');
                 return;
             }
-            
+
+            const sections = Array.from(resultDiv.querySelectorAll('.section-wrapper'));
+            const lockedContent = new Map();
+            const unlockedTypes = new Set(['title', 'description', 'summary', 'keywords']);
+
+            sections.forEach(section => {
+                if (section.classList.contains('locked')) {
+                    const type = section.querySelector('.regenerate-btn')?.dataset.type;
+                    if (type) {
+                        lockedContent.set(type, section.innerHTML);
+                        unlockedTypes.delete(type);
+                    }
+                }
+            });
+
+            if (unlockedTypes.size === 0 && sections.length > 0) {
+                showMessage('所有模块都已锁定，无需生成。', 'info');
+                return;
+            }
+
+            const typesToGenerate = Array.from(unlockedTypes);
+            if (typesToGenerate.length === 0) {
+                typesToGenerate.push('all');
+            }
+
             const material = document.getElementById('productMaterial').value.trim();
             const specs = document.getElementById('productSpecs').value.trim();
             const scenarios = document.getElementById('productScenarios').value.trim();
             const referenceText = document.getElementById('referenceText').value.trim();
             const referenceKeywords = document.getElementById('referenceKeywords').value.trim();
             const details = { material, specs, scenarios, referenceText, referenceKeywords };
+            
+            const generationMode = typesToGenerate.length >= 4 ? 'all' : typesToGenerate.join(',');
+            const prompt = createPrompt(generationMode, productIdea, details);
 
-            const prompt = createPrompt(type, productIdea, details);
             showLoading(true);
             try {
                 const text = await callGeminiAPI(prompt, uploadedImageBase64, uploadedImageType);
-                displayResult(text, type, productIdea);
-                if (type === 'all') {
-                    await saveToHistory(productIdea, text, details, uploadedImageBase64, uploadedImageType);
+                
+                if (lockedContent.size > 0) {
+                    const newResultHtml = parseAndMergeResults(text, lockedContent, productIdea);
+                    resultDiv.innerHTML = newResultHtml;
+                } else {
+                    displayResult(text, 'all', productIdea);
                 }
+                
+                const fullContentForHistory = resultDiv.innerHTML;
+                const fullTextContent = convertHtmlToStructuredText(fullContentForHistory);
+                await saveToHistory(productIdea, fullTextContent, details, uploadedImageBase64, uploadedImageType);
+                
+                generateAllBtn.innerHTML = '🚀 重新生成'; // Change button text after successful generation
+
             } catch (error) {
                 console.error('API Call Error:', error);
-                displayResult(`抱歉，调用AI服务时出错：${error.message}`, 'error');
-                showMessage('AI服务调用失败，请稍后重试。', 'error');
+                const errorMessage = error.message || '未知错误';
+                displayResult(`抱歉，调用AI服务时出错：${errorMessage}`, 'error');
+                showMessage(`AI服务调用失败: ${errorMessage}`, 'error');
+
+                if (errorMessage.includes('401') || errorMessage.includes('API密钥')) {
+                    showApiKeyModal('API密钥无效或缺失，请更新或添加密钥。');
+                }
+
             } finally {
                 showLoading(false);
             }
         }
         
+        // --- Helper to extract clean content from AI's raw response block ---
+        function extractCleanContent(rawText) {
+             if (!rawText) return '';
+             return rawText.replace(/^###\s+(Title|Summary|Description|Keywords)\s*\n---\n?/, '').trim();
+        }
+
         async function handleSingleRegeneration(type) {
             const productIdea = document.getElementById('productIdea').value.trim();
             if (!productIdea) {
@@ -372,8 +573,7 @@
             const referenceKeywords = document.getElementById('referenceKeywords').value.trim();
             const details = { material, specs, scenarios, referenceText, referenceKeywords };
 
-            const typeMapReverse = { 'title': '产品名称', 'summary': '概要', 'description': '产品描述', 'keywords': '关键词' };
-            const sectionTitle = typeMapReverse[type];
+            const sectionTitle = REGEN_TYPE_MAP[type];
             const sectionWrapper = document.getElementById(`section-${sectionTitle.replace(/\s/g, '-')}`);
             if (!sectionWrapper) return;
 
@@ -387,25 +587,28 @@
             const prompt = createPrompt(type, productIdea, details);
 
             try {
-                const newText = await callGeminiAPI(prompt, uploadedImageBase64, uploadedImageType);
+                const rawText = await callGeminiAPI(prompt, uploadedImageBase64, uploadedImageType);
+                const newCleanText = extractCleanContent(rawText);
+
                 const contentBlock = sectionWrapper.querySelector('.content-block');
-                contentBlock.innerHTML = '';
+                contentBlock.innerText = newCleanText; // Use innerText to correctly display line breaks
                 
-                const textNode = document.createTextNode(newText.trim());
-                contentBlock.appendChild(textNode);
-                
-                const counterDiv = createCounterDiv(sectionTitle, newText.trim());
+                const counterDiv = createCounterDiv(sectionTitle, newCleanText);
                 if (counterDiv) contentBlock.appendChild(counterDiv);
 
-                const validationResult = validateContent(sectionTitle, newText.trim());
+                const validationResult = validateContent(sectionTitle, newCleanText);
                 const statusSpan = sectionWrapper.querySelector('.validation-status');
                 if(statusSpan) {
                      statusSpan.innerHTML = getValidationStatus(validationResult);
                 }
                 
-                await updateHistoryContent(productIdea, sectionTitle, newText.trim());
+                await updateHistoryContent(productIdea, sectionTitle, newCleanText);
             } catch (error) {
-                 showMessage(`重新生成'${sectionTitle}'失败: ${error.message}`, 'error');
+                 const errorMessage = error.message || '未知错误';
+                 showMessage(`重新生成'${sectionTitle}'失败: ${errorMessage}`, 'error');
+                 if (errorMessage.includes('401') || errorMessage.includes('API密钥')) {
+                    showApiKeyModal('API密钥无效或缺失，请更新或添加密钥。');
+                 }
             } finally {
                  if (regenerateButton) {
                     regenerateButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg><span>重新生成</span>`;
@@ -430,31 +633,39 @@
                 hasDetails = true;
             }
 
-            const basePrompt = `You are an expert copywriter for the B2B promotional products platform ASI. Your task is to generate content based on the provided product image, supplementary text details, and especially the reference text/keywords. The reference materials are the most important source of inspiration.\n- **Product Concept:** ${product}${hasDetails ? productDetailsSection : ''}\nAnalyze all provided information. Extract key selling points and style from the reference, then rewrite and format everything according to the strict ASI rules below.`;
-            const titleRules = `1. Capitalize the first letter of each word (Title Case).\n2. The character limit for each name is 60 characters.\n3. Do not repeat any words within a single name.`;
-            const summaryRules = `1. Extract and summarize the product's key highlights.\n2. The character limit is 130 characters.`;
-            const descriptionRules = `1. The character limit is 800 characters.\n2. Use only standard English punctuation.\n3. Do not include any price-related language.\n4. Structure: material, function, scenarios, advantages, assurance statement. Base the content on all provided information, especially the reference text.`;
-            const keywordRules = `1. **Crucially, use the "Reference Keywords" as the primary source.** Clean them up to meet ASI rules (Title Case, no plurals, no symbols, etc.). \n2. **Actively identify and exclude any potential brand names, trademarks, or company names from the reference list.**\n3. If the cleaned reference keywords are not enough, generate more relevant, non-brand keywords to reach 30 groups.\n4. Each group must be comma and space separated, under 30 chars, and 2-3 words.\n5. Do not reuse phrases from the name, summary, or description.\n6. No subjective praise or keyword stuffing.`;
+            const basePrompt = `You are an expert copywriter for the B2B promotional products platform ASI. Your primary role is to act as a market researcher and content generator.\n\n**Step 1: Simulated Web Research.**\nBased on the user's 'Product Concept', you must first perform a simulated web search on popular e-commerce sites (like Amazon.com) and promotional product platforms (like ASI, 4imprint) to gather typical features, materials, specifications, and marketing angles for this type of product. You must use this simulated research as the primary context for your writing, especially if the user has not provided detailed reference text. For example, if the user enters "umbrella", you should imagine searching for "promotional travel umbrella" and "custom logo umbrella" and use the common features you find (e.g., auto-open, fiberglass ribs, SPF 50+ canopy) to enrich your output.\n\n**Step 2: Content Generation.**\nUsing the context from your research AND the specific details provided by the user, generate the required content. User-provided details (like material, specs, reference text) ALWAYS take precedence over your general research.\n\n**User's Input:**\n- Product Concept: ${product}${hasDetails ? productDetailsSection : ''}\n\n**CRUCIAL, UNBREAKABLE RULES:**\n- **ALL OUTPUT MUST BE IN ENGLISH.** Do not include any Chinese characters or any other language in the output.\n- **YOUR RESPONSE MUST START DIRECTLY WITH '### Title'.** Any other starting text, preamble, or conversational filler will cause a system crash.`;
             
-            switch(type) {
-                case 'title':
-                    return `${basePrompt}\n\n**Task: Generate 5 product names.**\n**Rules:**\n${titleRules}\nOutput only the list of names, each on a new line.`;
-                case 'summary':
-                    return `${basePrompt}\n\n**Task: Write a product summary.**\n**Rules:**\n${summaryRules}\nOutput only the summary text.`;
-                case 'description':
-                     return `${basePrompt}\n\n**Task: Write a compelling product description.**\n**Rules:**\n${descriptionRules}\nOutput only the description text.`;
-                case 'keywords':
-                     return `${basePrompt}\n\n**Task: Generate 30 relevant keyword groups.**\n**Rules:**\n${keywordRules}\nOutput only the comma-separated list of keywords.`;
-                case 'all':
-                default:
-                     return `${basePrompt}\n\n**Task: Generate the product name, summary, description, and keywords.**\n**Output Structure:**\n### 产品名称\n---\n[Generate 5 names here]\n\n### 概要\n---\n[Generate one summary here]\n\n### 产品描述\n---\n[Generate one description here]\n\n### 关键词\n---\n[Generate 30 keyword groups here]\n\n**Rules:**\n- Title:${titleRules}\n- Summary:${summaryRules}\n- Desc:${descriptionRules}\n- Keywords:${keywordRules}`;
+            const titleRules = `**Title Rules:**\n1. Generate 5 unique product names. Each on a new line.\n2. Each name MUST be Title Case (first letter of each word capitalized).\n3. Each name MUST be under 60 characters.\n4. A name MUST NOT contain any repeated words.`;
+            const summaryRules = `**Summary Rules:**\n1. Generate one concise paragraph summarizing the product's key highlights.\n2. The summary MUST be under 130 characters.`;
+            const descriptionRules = `**Description Rules:**\n1. The description MUST be under 800 characters.\n2. It MUST NOT contain any Chinese punctuation. Use only standard English punctuation.\n3. It MUST NOT contain any price-related language (e.g., "$", "price", "cost").\n4. Structure the paragraph around: Material, Function, Usage Scenarios, Advantages, and an assurance statement.`;
+            const keywordRules = `**Keywords Rules:**\n1. Generate exactly 30 keyword groups.\n2. Each group MUST be separated by a comma and a space (e.g., "Word One, Word Two").\n3. Each group MUST be Title Case.\n4. Each group MUST be under 30 characters.\n5. Each group MUST be short, ideally 2-3 words. DO NOT create sentences.\n6. Use relevant terms a customer would search for. DO NOT use irrelevant words.\n7. DO NOT repeat phrases already used in the Title, Summary, or Description.\n8. DO NOT stuff or repeat keywords.\n9. DO NOT use plurals, symbols, or abbreviations.\n10. DO NOT use subjective praise (e.g., "Best", "Amazing").\n11. **Crucially, use the "Reference Keywords" as the primary source.** Clean them up to meet all rules above. If the cleaned reference list is not enough, generate more relevant, non-brand keywords to reach 30 groups. Actively identify and exclude any potential brand names or trademarks.`;
+            
+            const typeRulesMap = { 'title': titleRules, 'description': descriptionRules, 'summary': summaryRules, 'keywords': keywordRules };
+            const englishHeaders = { 'title': 'Title', 'description': 'Description', 'summary': 'Summary', 'keywords': 'Keywords'};
+
+            let taskDescription = '';
+            let rulesDescription = '';
+            const typesToGenerate = type.split(',').filter(t => t && t !== 'all');
+
+            if (type === 'all' || typesToGenerate.length >= 4) {
+                 taskDescription = `**Task: Generate all content sections: Title, Description, Summary, and Keywords.**`;
+                 rulesDescription = `**Output Structure & Rules:**\nFollow this structure precisely. Do not add any text before "### Title".\n\n### Title\n---\n[5 names, each on a new line]\n\n### Description\n---\n[1 paragraph]\n\n### Summary\n---\n[1 paragraph]\n\n### Keywords\n---\n[30 comma-separated groups]\n\n${titleRules}\n${descriptionRules}\n${summaryRules}\n${keywordRules}`;
+            } else {
+                taskDescription = `**Task: Generate ONLY the following sections: ${typesToGenerate.map(t => englishHeaders[t]).join(', ')}.**`;
+                rulesDescription = `**Output Structure & Rules:**\n` + typesToGenerate.map(t => `### ${englishHeaders[t]}\n---\n[Content for ${englishHeaders[t]}]\n\n${typeRulesMap[t]}`).join('\n\n');
             }
+
+            return `${basePrompt}\n\n${taskDescription}\n\n${rulesDescription}`;
         }
         
         // --- Validation Engine ---
-        function validateContent(type, text) {
+        function validateContent(chineseTitle, text) {
             const results = { isValid: true, messages: [] };
-            switch (type) {
+             if (/[一-龠]/.test(text)) { 
+                results.isValid = false; 
+                results.messages.push(`包含中文`); 
+            }
+            switch (chineseTitle) {
                 case '产品名称':
                     break;
                 case '概要':
@@ -481,9 +692,9 @@
             return '<span class="text-green-500">✅</span>';
         }
 
-        function createCounterDiv(title, content) {
+        function createCounterDiv(chineseTitle, content) {
             let countHtml = '';
-             switch (title) {
+             switch (chineseTitle) {
                 case '概要':
                     countHtml = `${content.length} / 130`;
                     break;
@@ -506,6 +717,19 @@
         }
 
         // --- History Management ---
+        function toggleHistory() {
+            const isCollapsed = historyList.classList.contains('max-h-0');
+            if (isCollapsed) {
+                historyList.classList.remove('max-h-0', 'mt-0');
+                historyList.classList.add('max-h-96', 'mt-4'); // A large enough max-height
+                historyArrow.classList.add('rotate-180');
+            } else {
+                historyList.classList.add('max-h-0', 'mt-0');
+                historyList.classList.remove('max-h-96', 'mt-4');
+                historyArrow.classList.remove('rotate-180');
+            }
+        }
+        
         async function compressImage(src, maxWidth = 200, maxHeight = 200, quality = 0.7) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -538,6 +762,7 @@
                 if (storedHistory) { history = JSON.parse(storedHistory); renderHistory(); }
             } catch (e) { console.error("Failed to load history:", e); localStorage.removeItem('asiProductHistory'); }
         }
+
         function renderHistory() {
             historyList.innerHTML = '';
             if(history.length === 0){
@@ -546,13 +771,34 @@
             }
             history.forEach((item, index) => {
                 const li = document.createElement('li');
-                li.className = 'p-3 rounded-lg border border-slate-200';
-                li.textContent = item.product;
+                li.className = 'history-item flex justify-between items-center p-3 rounded-lg border border-slate-200';
                 li.dataset.index = index;
-                li.addEventListener('click', () => viewHistoryItem(index));
+                li.innerHTML = `
+                    <span class="truncate cursor-pointer flex-grow history-item-view" title="${item.product}">${item.product}</span>
+                    <button class="history-item-export ml-4 text-xs bg-blue-100 text-blue-700 font-medium py-1 px-2 rounded-md hover:bg-blue-200 transition-colors flex-shrink-0" data-index="${index}">导出</button>
+                `;
                 historyList.appendChild(li);
             });
         }
+
+        function handleHistoryListClick(event) {
+            const target = event.target;
+            const viewTarget = target.closest('.history-item-view');
+            const exportTarget = target.closest('.history-item-export');
+
+            if (exportTarget) {
+                const index = exportTarget.dataset.index;
+                const itemToExport = history[index];
+                if (itemToExport) {
+                    exportToExcel([itemToExport]);
+                }
+            } else if (viewTarget) {
+                 const li = viewTarget.closest('.history-item');
+                 const index = li.dataset.index;
+                 viewHistoryItem(index);
+            }
+        }
+        
         async function saveToHistory(product, content, details, imageBase64, imageType) {
             const existingIndex = history.findIndex(item => item.product === product);
             if (existingIndex > -1) history.splice(existingIndex, 1);
@@ -570,14 +816,21 @@
             } catch (e) { showMessage('历史记录存储失败，可能已满。', 'error'); history.shift(); }
             renderHistory();
         }
-        async function updateHistoryContent(product, sectionTitle, newContent) {
+        async function updateHistoryContent(product, chineseTitle, newContent) {
              const existingIndex = history.findIndex(item => item.product === product);
             if (existingIndex > -1) {
                 const currentItem = history[existingIndex];
-                const regex = new RegExp(`(### ${sectionTitle}\\n---)([\\s\\S]*?)(?=\\n###|$)`);
+                const englishTitle = REVERSE_ENGLISH_TITLE_MAP[chineseTitle];
+                if (!englishTitle) return;
+
+                const regex = new RegExp(`(### ${englishTitle}\\n---)([\\s\\S]*?)(?=\\n###|$)`);
                 const updatedContent = currentItem.content.replace(regex, `$1\n${newContent.trim()}\n`);
                 history[existingIndex].content = updatedContent;
-                localStorage.setItem('asiProductHistory', JSON.stringify(history));
+                try {
+                    localStorage.setItem('asiProductHistory', JSON.stringify(history));
+                } catch (e) {
+                     console.error("Failed to update history in localStorage:", e);
+                }
             }
         }
         function viewHistoryItem(index) {
@@ -602,63 +855,132 @@
                 }
                 
                 displayResult(item.content, 'all', item.product);
+                generateAllBtn.innerHTML = '🚀 重新生成'; // Set button text when loading from history
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
         function clearHistory() {
-            history = [];
-            localStorage.removeItem('asiProductHistory');
-            renderHistory();
-            showMessage('历史记录已清空。', 'success');
+            if(confirm('您确定要清空所有历史记录吗？此操作不可撤销。')){
+                history = [];
+                localStorage.removeItem('asiProductHistory');
+                renderHistory();
+                showMessage('历史记录已清空。', 'success');
+            }
         }
-
+        
         // --- UI Update Functions ---
         function showLoading(isLoading) {
             loader.classList.toggle('hidden', !isLoading);
             if (isLoading) { placeholder.classList.add('hidden'); resultDiv.innerHTML = ''; }
         }
         
+        function parseAndMergeResults(newText, lockedContentMap, productIdea) {
+            let finalHtml = `<h3>${productIdea}</h3>`;
+            const allTypes = ['title', 'description', 'summary', 'keywords'];
+            
+            const newSections = new Map();
+            const startIndex = newText ? newText.indexOf('###') : -1;
+            
+            if (startIndex !== -1) {
+                const cleanText = newText.substring(startIndex);
+                const sections = cleanText.split(/### (Title|Summary|Description|Keywords)\n---/g).filter(s => s && s.trim() !== '');
+                for (let i = 0; i < sections.length; i += 2) {
+                     if (sections[i + 1] === undefined) continue;
+                     const englishTitle = sections[i].trim();
+                     const regenType = englishTitle.toLowerCase();
+                     newSections.set(regenType, sections[i+1].trim());
+                }
+            }
+
+            allTypes.forEach(regenType => {
+                let sectionHtml;
+                if (lockedContentMap.has(regenType)) {
+                    sectionHtml = lockedContentMap.get(regenType);
+                } else {
+                    const content = newSections.get(regenType) || '生成失败或无内容返回';
+                    const chineseTitle = REGEN_TYPE_MAP[regenType];
+                    sectionHtml = buildSectionHtml(chineseTitle, content, true); // isNew = true
+                }
+                finalHtml += sectionHtml;
+            });
+
+            return finalHtml;
+        }
+
+        function buildSectionHtml(chineseTitle, content, isNew) {
+            const regenType = Object.keys(REGEN_TYPE_MAP).find(key => REGEN_TYPE_MAP[key] === chineseTitle);
+            
+            const validationResult = validateContent(chineseTitle, content);
+            const status = getValidationStatus(validationResult);
+            const isLocked = !isNew;
+
+            const lockButton = `<button class="lock-btn action-btn" data-type="${regenType}" title="${isLocked ? '点击解锁' : '点击锁定'}">${isLocked ? `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2"/></svg><span>锁定</span>` : `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M11 1a2 2 0 0 0-2 2v4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h5V3a3 3 0 0 1 6 0v4a.5.5 0 0 1-1 0V3a2 2 0 0 0-2-2"/></svg><span>解锁</span>`}</button>`;
+            const translateButton = `<button class="translate-btn action-btn" title="在谷歌翻译中打开"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M4.545 6.714 4.11 8H3l1.862-5h1.284L8 8H6.833l-.435-1.286zm1.634-2.736L5.5 1.956h-.043l-.697 2.022z"/><path d="M0 2a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v3h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-3H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zm7.138 9.995c.193.301.402.583.63.846-.748.575-1.673 1.001-2.768 1.292.178.217.451.635.555.867 1.125-.359 2.08-.844 2.886-1.494.17.302.278.632.365.992.508-.283.92-1.075 1.21-1.96.28-.85.455-1.85.508-2.934h-1.025c-.05.88-.17 1.56-.34 2.11a2.7 2.7 0 0 1-.62 1.087c-.22.252-.494.456-.79.612z"/></svg><span>翻译</span></button>`;
+            const copyButton = `<button class="copy-btn action-btn" title="复制内容"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M5.5 1a.5.5 0 0 1 .5.5V2h6v-.5a.5.5 0 0 1 1 0V2A1.5 1.5 0 0 1 11.5 3.5h-7A1.5 1.5 0 0 1 3 2V1.5a.5.5 0 0 1 .5-.5zM5 3.5a.5.5 0 0 0 .5.5h5a.5.5 0 0 0 0-1h-5a.5.5 0 0 0-.5.5"/></svg><span>复制</span></button>`;
+            const regenButton = `<button class="regenerate-btn action-btn" data-type="${regenType}" title="重新生成此版块" ${isLocked ? 'disabled' : ''}><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg><span>重新生成</span></button>`;
+            const counterDiv = createCounterDiv(chineseTitle, content);
+
+            return `<div class="section-wrapper ${isLocked ? 'locked' : ''}" id="section-${chineseTitle.replace(/\s/g, '-')}">
+                        <h4>
+                            <span>${chineseTitle}</span>
+                            <span class="validation-status">${status}</span>
+                            <div class="ml-auto flex items-center gap-2">${lockButton}${translateButton}${copyButton}${regenButton}</div>
+                        </h4>
+                        <div class="content-block">
+                            ${content}
+                            ${counterDiv ? counterDiv.outerHTML : ''}
+                        </div>
+                     </div>`;
+        }
+
         function displayResult(text, type, productIdea = '') {
             placeholder.classList.add('hidden');
             let html = `<h3>${productIdea}</h3>`;
+            const startIndex = text ? text.indexOf('###') : -1;
+            
             if (type === 'error') {
                 html += `<div class="content-block text-red-600">${text}</div>`;
+            } else if (startIndex === -1) {
+                html += `<h4>AI 原始回复 (格式错误)</h4><div class="content-block">${text || '无内容返回'}</div>`;
             } else {
-                const sections = text.split(/### (.*?)\n---/g).filter(s => s.trim() !== '');
-                const typeMap = { '产品名称': 'title', '概要': 'summary', '产品描述': 'description', '关键词': 'keywords' };
-
+                const cleanText = text.substring(startIndex);
+                const sections = cleanText.split(/### (Title|Summary|Description|Keywords)\n---/g).filter(s => s && s.trim() !== '');
+                
                 for (let i = 0; i < sections.length; i += 2) {
-                    const title = sections[i].trim();
+                    const englishTitle = sections[i].trim();
+                     if (sections[i + 1] === undefined) {
+                        console.warn(`Content missing for section: ${englishTitle}`);
+                        continue; 
+                    }
                     const content = sections[i + 1].trim();
-                    const validationResult = validateContent(title, content);
-                    const status = getValidationStatus(validationResult);
-                    const regenType = typeMap[title];
-                    
-                    const translateButton = `<button class="translate-btn action-btn" title="在谷歌翻译中打开"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M4.545 6.714 4.11 8H3l1.862-5h1.284L8 8H6.833l-.435-1.286zm1.634-2.736L5.5 1.956h-.043l-.697 2.022z"/><path d="M0 2a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v3h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-3H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zm7.138 9.995c.193.301.402.583.63.846-.748.575-1.673 1.001-2.768 1.292.178.217.451.635.555.867 1.125-.359 2.08-.844 2.886-1.494.17.302.278.632.365.992.508-.283.92-1.075 1.21-1.96.28-.85.455-1.85.508-2.934h-1.025c-.05.88-.17 1.56-.34 2.11a2.7 2.7 0 0 1-.62 1.087c-.22.252-.494.456-.79.612z"/></svg><span>翻译</span></button>`;
-                    const copyButton = `<button class="copy-btn action-btn" title="复制内容"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M5.5 1a.5.5 0 0 1 .5.5V2h6v-.5a.5.5 0 0 1 1 0V2A1.5 1.5 0 0 1 11.5 3.5h-7A1.5 1.5 0 0 1 3 2V1.5a.5.5 0 0 1 .5-.5zM5 3.5a.5.5 0 0 0 .5.5h5a.5.5 0 0 0 0-1h-5a.5.5 0 0 0-.5.5"/></svg><span>复制</span></button>`;
-                    const regenButton = `<button class="regenerate-btn action-btn" data-type="${regenType}" title="重新生成此版块"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg><span>重新生成</span></button>`;
-                    const counterDiv = createCounterDiv(title, content);
-
-                    html += `<div class="section-wrapper" id="section-${title.replace(/\s/g, '-')}">
-                                <h4>
-                                    <span>${title}</span>
-                                    <span class="validation-status">${status}</span>
-                                    <div class="ml-auto flex items-center gap-2">${translateButton}${copyButton}${regenButton}</div>
-                                </h4>
-                                <div class="content-block">
-                                    ${content}
-                                    ${counterDiv ? counterDiv.outerHTML : ''}
-                                </div>
-                             </div>`;
+                    const chineseTitle = ENGLISH_TITLE_MAP[englishTitle] || englishTitle;
+                    html += buildSectionHtml(chineseTitle, content, true); // isNew = true
                 }
             }
             resultDiv.innerHTML = html;
+        }
+        
+        function convertHtmlToStructuredText(htmlContent) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlContent;
+            let structuredText = '';
+            const sections = tempDiv.querySelectorAll('.section-wrapper');
+            sections.forEach(section => {
+                const chineseTitle = section.querySelector('h4 span:first-child').textContent.trim();
+                const englishTitle = REVERSE_ENGLISH_TITLE_MAP[chineseTitle] || chineseTitle;
+                const content = getCleanTextFromBlock(section.querySelector('.content-block'));
+                structuredText += `### ${englishTitle}\n---\n${content}\n\n`;
+            });
+            return structuredText.trim();
         }
 
         function showMessage(message, type = 'success') {
             messageText.textContent = message;
             messageBox.className = 'fixed top-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg fade-in';
-            messageBox.classList.add(type === 'error' ? 'bg-red-500' : 'bg-green-500');
+            if (type === 'error') messageBox.classList.add('bg-red-500');
+            else if (type === 'info') messageBox.classList.add('bg-blue-500');
+            else messageBox.classList.add('bg-green-500');
+            
             setTimeout(() => { messageBox.classList.add('hidden'); }, 3000);
         }
 
@@ -669,10 +991,70 @@
             return new File([u8arr], filename, {type:mime});
         }
         
+        // --- Excel Export Functions ---
+        function parseContentToObject(contentString) {
+            const data = {
+                '产品名称': '', '产品描述': '', '概要': '', '关键词': '',
+            };
+            if (!contentString) return data;
+
+            // Use the map to find the correct chinese title
+            const sections = contentString.split(/### (Title|Description|Summary|Keywords)\n---/g).filter(s => s && s.trim() !== '');
+
+            for (let i = 0; i < sections.length; i += 2) {
+                const englishTitle = sections[i].trim();
+                const content = sections[i + 1] ? sections[i+1].trim() : '';
+                const chineseTitle = ENGLISH_TITLE_MAP[englishTitle];
+                if (chineseTitle) {
+                    data[chineseTitle] = content;
+                }
+            }
+            return data;
+        }
+
+        function exportToExcel(items) {
+            if (!items || items.length === 0) {
+                showMessage('没有可导出的历史记录。', 'info');
+                return;
+            }
+
+            const dataForSheet = items.map(item => {
+                const parsedData = parseContentToObject(item.content);
+                return {
+                    '产品概念': item.product,
+                    '产品名称': parsedData['产品名称'],
+                    '产品描述': parsedData['产品描述'],
+                    '概要': parsedData['概要'],
+                    '关键词': parsedData['关键词'],
+                };
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'ASI Products');
+
+            // Set column widths
+            worksheet["!cols"] = [
+                { wch: 30 }, // 产品概念
+                { wch: 50 }, // 产品名称
+                { wch: 80 }, // 产品描述
+                { wch: 50 }, // 概要
+                { wch: 80 }, // 关键词
+            ];
+
+            XLSX.writeFile(workbook, `ASI_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
+            showMessage('导出成功！', 'success');
+        }
+
+
         // --- Gemini API Call ---
         async function callGeminiAPI(prompt, base64Data, mimeType) {
-            const apiKey = "AIzaSyCc56BzHDzOudZe2x2fvjCF43BtwCMAXBs";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const userApiKey = localStorage.getItem('geminiApiKey');
+            if (!userApiKey) {
+                throw new Error('API密钥未配置。');
+            }
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${userApiKey}`;
             const userParts = [{ text: prompt }];
             if (base64Data && mimeType) { userParts.unshift({ inlineData: { mimeType: mimeType, data: base64Data } }); }
             const payload = {
@@ -680,20 +1062,38 @@
                 generationConfig: { temperature: 0.6, topP: 1.0, maxOutputTokens: 8192 }
             };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) throw new Error(`API request failed: ${response.status} ${await response.text()}`);
+            
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error('API密钥无效或权限不足 (401/403)。请检查您的密钥。');
+                }
+                throw new Error(`API请求失败: ${response.status} ${await response.text()}`);
+            }
+
             const result = await response.json();
             const candidate = result.candidates?.[0];
+            
             if (candidate?.content?.parts?.[0]?.text) {
-                if (candidate.finishReason === 'MAX_TOKENS') {
-                    console.warn("API response was truncated due to MAX_TOKENS. Displaying partial result.");
-                 } else if (candidate.finishReason && candidate.finishReason !== 'STOP') { 
-                    throw new Error(`Generation stopped: ${candidate.finishReason}`); 
+                 if (candidate.finishReason && candidate.finishReason !== 'STOP') {
+                    console.warn(`API response may be partial. Reason: ${candidate.finishReason}`);
                  }
-                return candidate.content.parts[0].text.trim();
-            } else {
-                if(candidate?.finishReason === 'SAFETY') { throw new Error("内容可能违反了安全策略。"); }
-                throw new Error("AI未能生成有效内容。");
+                 return candidate.content.parts[0].text.trim();
             }
+
+            if (candidate) {
+                switch (candidate.finishReason) {
+                    case 'SAFETY':
+                        throw new Error("内容可能违反了安全策略，请修改输入后重试。");
+                    case 'MAX_TOKENS':
+                        throw new Error("内容生成超出最大长度限制，请尝试简化输入或参考文案。");
+                    case 'RECITATION':
+                        throw new Error("内容因引用受版权保护的材料而被阻止。");
+                    default:
+                        throw new Error(`AI未能生成有效内容。原因: ${candidate.finishReason || '未知'}`);
+                }
+            }
+            
+            throw new Error("AI未能生成有效内容，API未返回任何候选结果。");
         }
     </script>
 </body>
