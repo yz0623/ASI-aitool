@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASI平台专用AI助手 (最终修复版)</title>
+    <title>ASI平台专用AI助手 (导出格式最终修复)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Add SheetJS library for Excel export -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <style>
         body {
@@ -114,7 +113,6 @@
             color: #94a3b8;
             cursor: not-allowed;
         }
-        /* Custom scrollbar */
         .custom-scrollbar::-webkit-scrollbar {
             width: 8px;
         }
@@ -129,9 +127,8 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
-        /* Lock feature styles */
         .section-wrapper.locked {
-            background-color: #f0f5ff; /* A light blue to indicate locked */
+            background-color: #f0f5ff;
             border-radius: 0.5rem;
             padding: 2px 8px;
             margin: -2px -8px;
@@ -145,10 +142,8 @@
     </header>
 
     <main class="lg:grid lg:grid-cols-2 lg:gap-8 p-4">
-        <!-- Left Column (Inputs) -->
         <div class="lg:sticky lg:top-4 self-start">
              <div class="bg-white p-6 rounded-2xl shadow-lg relative flex flex-col h-[848px]">
-                <!-- NEW: Header for the left panel -->
                 <div class="flex justify-between items-center pb-4 border-b mb-4 flex-shrink-0">
                     <h2 class="text-xl font-bold text-slate-800">产品信息</h2>
                     <div class="flex items-center gap-3">
@@ -161,7 +156,6 @@
                     </div>
                 </div>
                  <div class="flex-grow overflow-y-auto custom-scrollbar pr-3 -mr-3">
-                    <!-- Image Upload Section -->
                     <div class="mb-6">
                         <p class="input-group-title">1. 上传产品图片 (推荐)</p>
                         <div id="image-preview-container" class="hidden group relative w-48 h-48 mx-auto border-2 border-dashed rounded-lg flex items-center justify-center bg-slate-50">
@@ -202,16 +196,23 @@
                              <div class="md:col-span-2">
                                 <label for="referenceKeywords" class="block text-sm font-medium text-slate-700 mb-1">参考关键词 (来自卖家精灵等, 选填)</label>
                                 <textarea id="referenceKeywords" rows="4" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm" placeholder="请粘贴关键词列表，用逗号或换行分隔..."></textarea>
-                            </div>
+                                <div class="mt-2">
+                                     <button id="toggleCustomPromptBtn" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 flex items-center gap-1">
+                                        <span>自定义关键词规则</span>
+                                        <svg id="customPromptArrow" class="w-4 h-4 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                                    </button>
+                                </div>
+                                <div id="customPromptContainer" class="mt-2 hidden">
+                                     <textarea id="customKeywordPrompt" rows="4" class="w-full p-2 border border-slate-300 rounded-lg shadow-sm text-sm bg-indigo-50" placeholder="请在此处输入你对关键词生成的特殊要求。例如：&#10;1. 绝对不要出现任何品牌词，尤其是 [品牌A, 品牌B]。&#10;2. 多生成和‘商务礼品’、‘展会赠品’相关的词。"></textarea>
+                                </div>
+                             </div>
                         </div>
                     </div>
                 </div>
              </div>
         </div>
 
-        <!-- Right Column (Outputs) -->
         <div class="mt-8 lg:mt-0 flex flex-col h-[848px] gap-8">
-            <!-- History Section -->
             <div id="historySection" class="bg-white p-6 rounded-2xl shadow-lg flex-shrink-0">
                 <div id="historyHeader" class="flex justify-between items-center cursor-pointer">
                     <h2 class="text-xl font-bold text-slate-800">历史记录</h2>
@@ -226,11 +227,9 @@
                     </div>
                 </div>
                 <ul id="historyList" class="space-y-2 max-h-0 overflow-y-auto mt-0 transition-all duration-500 ease-in-out custom-scrollbar">
-                    <!-- History items will be injected here -->
                 </ul>
             </div>
             
-            <!-- Output Section -->
             <div id="output" class="bg-white p-6 rounded-2xl shadow-lg flex-grow min-h-0 flex flex-col">
                  <div class="overflow-y-auto custom-scrollbar -mr-3 pr-3 h-full">
                     <div id="placeholder" class="text-center text-slate-500 flex flex-col items-center justify-center h-full">
@@ -243,12 +242,10 @@
             </div>
         </div>
         
-         <!-- Message Box -->
         <div id="messageBox" class="fixed top-5 right-5 bg-red-500 text-white py-2 px-4 rounded-lg shadow-lg hidden fade-in">
             <p id="messageText"></p>
         </div>
 
-        <!-- API Key Modal -->
         <div id="apiKeyModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-50 flex items-center justify-center z-50 px-4">
             <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md m-4">
                 <h2 class="text-2xl font-bold text-slate-800 mb-4">配置 API 密钥</h2>
@@ -268,7 +265,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <script>
         // DOM Elements
@@ -294,8 +291,11 @@
         const apiKeyInput = document.getElementById('apiKeyInput');
         const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
         const apiKeyMessage = document.getElementById('apiKeyMessage');
+        const toggleCustomPromptBtn = document.getElementById('toggleCustomPromptBtn');
+        const customPromptContainer = document.getElementById('customPromptContainer');
+        const customPromptArrow = document.getElementById('customPromptArrow');
+        const customKeywordPrompt = document.getElementById('customKeywordPrompt');
         
-        // --- Global Variables & Constants ---
         let history = [];
         let uploadedImageBase64 = null;
         let uploadedImageType = null;
@@ -317,7 +317,6 @@
         const REVERSE_ENGLISH_TITLE_MAP = Object.fromEntries(Object.entries(ENGLISH_TITLE_MAP).map(a => a.reverse()));
 
 
-        // --- Event Listeners ---
         document.addEventListener('DOMContentLoaded', initApp);
         generateAllBtn.addEventListener('click', () => handleGeneration('all'));
         clearAllBtn.addEventListener('click', clearAllInputs);
@@ -334,20 +333,36 @@
         document.addEventListener('paste', handlePaste);
         resultDiv.addEventListener('click', handleResultClick);
         saveApiKeyBtn.addEventListener('click', saveApiKey);
+        toggleCustomPromptBtn.addEventListener('click', toggleCustomPrompt);
+        customKeywordPrompt.addEventListener('input', saveCustomPrompt);
 
-
-        // --- App Initialization ---
         function initApp() {
             loadHistory();
             const savedKey = localStorage.getItem('geminiApiKey');
             if (!savedKey) {
                 showApiKeyModal('欢迎使用！请先配置您的API密钥。');
             }
+            loadCustomPrompt();
+        }
+        
+        function loadCustomPrompt() {
+            const savedPrompt = localStorage.getItem('customKeywordPrompt');
+            if (savedPrompt) {
+                customKeywordPrompt.value = savedPrompt;
+            }
         }
 
-        // --- API Key Modal Logic ---
+        function saveCustomPrompt() {
+            localStorage.setItem('customKeywordPrompt', customKeywordPrompt.value);
+        }
+
+        function toggleCustomPrompt() {
+            customPromptContainer.classList.toggle('hidden');
+            customPromptArrow.classList.toggle('rotate-180');
+        }
+
         function showApiKeyModal(message) {
-            apiKeyMessage.textContent = message || '为了使用AI功能，请输入您的 Google Gemini API 密钥。密钥将安全地存储在您的浏览器中。';
+            apiKeyMessage.textContent = message || '为了使用AI功能，请输入您的 Google Gemini API 密钥。密钥将仅存储在您的浏览器本地。';
             apiKeyModal.classList.remove('hidden');
         }
 
@@ -362,7 +377,6 @@
             }
         }
 
-        // --- Image Handling ---
         function handleImageFile(event) {
             const file = event.target.files[0];
             if (file) processImageFile(file);
@@ -401,7 +415,6 @@
             uploadBox.classList.remove('hidden');
         }
         
-        // --- Content Handling ---
         function clearAllInputs() {
             removeImage();
             document.getElementById('productIdea').value = '';
@@ -412,7 +425,7 @@
             document.getElementById('referenceKeywords').value = '';
             resultDiv.innerHTML = '';
             placeholder.classList.remove('hidden');
-            generateAllBtn.innerHTML = '一键生成'; // Reset button text
+            generateAllBtn.innerHTML = '一键生成';
             showMessage('所有内容已清空。', 'success');
         }
         
@@ -440,7 +453,12 @@
         
         function getCleanTextFromBlock(contentBlock) {
             if (!contentBlock) return '';
-            return contentBlock.childNodes[0] ? contentBlock.childNodes[0].nodeValue.trim() : '';
+            const clone = contentBlock.cloneNode(true);
+            const counter = clone.querySelector('.absolute.bottom-2.right-2');
+            if (counter) {
+                counter.remove();
+            }
+            return clone.innerText.trim();
         }
 
         function toggleLock(lockBtn) {
@@ -478,8 +496,12 @@
             }
             document.body.removeChild(textArea);
         }
+        
+        function extractCleanContent(rawText) {
+             if (!rawText) return '';
+             return rawText.replace(/^###\s+(Title|Summary|Description|Keywords)\s*\n---\n?/, '').trim();
+        }
 
-        // --- Main Generation Handler ---
         async function handleGeneration(type) {
             const productIdea = document.getElementById('productIdea').value.trim();
             if (!productIdea) {
@@ -516,7 +538,8 @@
             const scenarios = document.getElementById('productScenarios').value.trim();
             const referenceText = document.getElementById('referenceText').value.trim();
             const referenceKeywords = document.getElementById('referenceKeywords').value.trim();
-            const details = { material, specs, scenarios, referenceText, referenceKeywords };
+            const customKeywordText = customKeywordPrompt.value.trim();
+            const details = { material, specs, scenarios, referenceText, referenceKeywords, customKeywordPrompt: customKeywordText };
             
             const generationMode = typesToGenerate.length >= 4 ? 'all' : typesToGenerate.join(',');
             const prompt = createPrompt(generationMode, productIdea, details);
@@ -536,7 +559,7 @@
                 const fullTextContent = convertHtmlToStructuredText(fullContentForHistory);
                 await saveToHistory(productIdea, fullTextContent, details, uploadedImageBase64, uploadedImageType);
                 
-                generateAllBtn.innerHTML = '🚀 重新生成'; // Change button text after successful generation
+                generateAllBtn.innerHTML = '🚀 重新生成';
 
             } catch (error) {
                 console.error('API Call Error:', error);
@@ -544,7 +567,7 @@
                 displayResult(`抱歉，调用AI服务时出错：${errorMessage}`, 'error');
                 showMessage(`AI服务调用失败: ${errorMessage}`, 'error');
 
-                if (errorMessage.includes('401') || errorMessage.includes('API密钥')) {
+                if (errorMessage.includes('401') || errorMessage.includes('API密钥') || errorMessage.includes('API_KEY_INVALID')) {
                     showApiKeyModal('API密钥无效或缺失，请更新或添加密钥。');
                 }
 
@@ -553,12 +576,6 @@
             }
         }
         
-        // --- Helper to extract clean content from AI's raw response block ---
-        function extractCleanContent(rawText) {
-             if (!rawText) return '';
-             return rawText.replace(/^###\s+(Title|Summary|Description|Keywords)\s*\n---\n?/, '').trim();
-        }
-
         async function handleSingleRegeneration(type) {
             const productIdea = document.getElementById('productIdea').value.trim();
             if (!productIdea) {
@@ -571,7 +588,8 @@
             const scenarios = document.getElementById('productScenarios').value.trim();
             const referenceText = document.getElementById('referenceText').value.trim();
             const referenceKeywords = document.getElementById('referenceKeywords').value.trim();
-            const details = { material, specs, scenarios, referenceText, referenceKeywords };
+            const customKeywordText = customKeywordPrompt.value.trim();
+            const details = { material, specs, scenarios, referenceText, referenceKeywords, customKeywordPrompt: customKeywordText };
 
             const sectionTitle = REGEN_TYPE_MAP[type];
             const sectionWrapper = document.getElementById(`section-${sectionTitle.replace(/\s/g, '-')}`);
@@ -588,10 +606,12 @@
 
             try {
                 const rawText = await callGeminiAPI(prompt, uploadedImageBase64, uploadedImageType);
-                const newCleanText = extractCleanContent(rawText);
+                let newCleanText = extractCleanContent(rawText);
+
+                newCleanText = enforceContentLimits(sectionTitle, newCleanText);
 
                 const contentBlock = sectionWrapper.querySelector('.content-block');
-                contentBlock.innerText = newCleanText; // Use innerText to correctly display line breaks
+                contentBlock.innerText = newCleanText;
                 
                 const counterDiv = createCounterDiv(sectionTitle, newCleanText);
                 if (counterDiv) contentBlock.appendChild(counterDiv);
@@ -606,18 +626,17 @@
             } catch (error) {
                  const errorMessage = error.message || '未知错误';
                  showMessage(`重新生成'${sectionTitle}'失败: ${errorMessage}`, 'error');
-                 if (errorMessage.includes('401') || errorMessage.includes('API密钥')) {
+                 if (errorMessage.includes('401') || errorMessage.includes('API密钥') || errorMessage.includes('API_KEY_INVALID')) {
                     showApiKeyModal('API密钥无效或缺失，请更新或添加密钥。');
                  }
             } finally {
                  if (regenerateButton) {
-                    regenerateButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg><span>重新生成</span>`;
+                    regenerateButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg><span>重新生成</span>`;
                     regenerateButton.disabled = false;
                 }
             }
         }
         
-        // --- Prompt Creation Engine ---
         function createPrompt(type, product, details) {
             let productDetailsSection = "\n**Product Details (Use these text details to supplement the provided image):**";
             let hasDetails = false;
@@ -636,10 +655,29 @@
             const basePrompt = `You are an expert copywriter for the B2B promotional products platform ASI. Your primary role is to act as a market researcher and content generator.\n\n**Step 1: Simulated Web Research.**\nBased on the user's 'Product Concept', you must first perform a simulated web search on popular e-commerce sites (like Amazon.com) and promotional product platforms (like ASI, 4imprint) to gather typical features, materials, specifications, and marketing angles for this type of product. You must use this simulated research as the primary context for your writing, especially if the user has not provided detailed reference text. For example, if the user enters "umbrella", you should imagine searching for "promotional travel umbrella" and "custom logo umbrella" and use the common features you find (e.g., auto-open, fiberglass ribs, SPF 50+ canopy) to enrich your output.\n\n**Step 2: Content Generation.**\nUsing the context from your research AND the specific details provided by the user, generate the required content. User-provided details (like material, specs, reference text) ALWAYS take precedence over your general research.\n\n**User's Input:**\n- Product Concept: ${product}${hasDetails ? productDetailsSection : ''}\n\n**CRUCIAL, UNBREAKABLE RULES:**\n- **ALL OUTPUT MUST BE IN ENGLISH.** Do not include any Chinese characters or any other language in the output.\n- **YOUR RESPONSE MUST START DIRECTLY WITH '### Title'.** Any other starting text, preamble, or conversational filler will cause a system crash.`;
             
             const titleRules = `**Title Rules:**\n1. Generate 5 unique product names. Each on a new line.\n2. Each name MUST be Title Case (first letter of each word capitalized).\n3. Each name MUST be under 60 characters.\n4. A name MUST NOT contain any repeated words.`;
-            const summaryRules = `**Summary Rules:**\n1. Generate one concise paragraph summarizing the product's key highlights.\n2. The summary MUST be under 130 characters.`;
+            const summaryRules = `**Summary Rules:**\n1. Generate one concise paragraph summarizing the product's key highlights.\n2. The summary MUST be under 130 characters. This is an absolute limit.`;
             const descriptionRules = `**Description Rules:**\n1. The description MUST be under 800 characters.\n2. It MUST NOT contain any Chinese punctuation. Use only standard English punctuation.\n3. It MUST NOT contain any price-related language (e.g., "$", "price", "cost").\n4. Structure the paragraph around: Material, Function, Usage Scenarios, Advantages, and an assurance statement.`;
-            const keywordRules = `**Keywords Rules:**\n1. Generate exactly 30 keyword groups.\n2. Each group MUST be separated by a comma and a space (e.g., "Word One, Word Two").\n3. Each group MUST be Title Case.\n4. Each group MUST be under 30 characters.\n5. Each group MUST be short, ideally 2-3 words. DO NOT create sentences.\n6. Use relevant terms a customer would search for. DO NOT use irrelevant words.\n7. DO NOT repeat phrases already used in the Title, Summary, or Description.\n8. DO NOT stuff or repeat keywords.\n9. DO NOT use plurals, symbols, or abbreviations.\n10. DO NOT use subjective praise (e.g., "Best", "Amazing").\n11. **Crucially, use the "Reference Keywords" as the primary source.** Clean them up to meet all rules above. If the cleaned reference list is not enough, generate more relevant, non-brand keywords to reach 30 groups. Actively identify and exclude any potential brand names or trademarks.`;
             
+            let keywordRules = `**Keywords Rules:**
+**ABSOLUTE PRIMARY RULES (THIS IS A NON-NEGOTIABLE FINAL CHECK):**
+1. **The final output MUST contain EXACTLY 30 keyword groups.** Not 29, not 31. Exactly 30.
+2. **Each of the 30 groups MUST be under 30 characters.** This is a strict platform limit.
+
+**Formatting and Content Rules:**
+3. Each group MUST be separated by a comma and a space (e.g., "Word One, Word Two").
+4. Each group MUST be Title Case.
+5. Each group MUST be a short phrase, ideally 2-3 words. Do not write full sentences.
+6. Use relevant terms a customer would search for. DO NOT use irrelevant words.
+7. DO NOT repeat phrases already used in the Title, Summary, or Description.
+8. DO NOT stuff or repeat keywords.
+9. DO NOT use plurals, symbols, or abbreviations.
+10. DO NOT use subjective praise (e.g., "Best", "Amazing").
+11. **Crucially, use the "Reference Keywords" as the primary source.** Clean them up to meet all rules above. If the cleaned reference list is not enough, generate more relevant, non-brand keywords to reach exactly 30 groups. Actively identify and exclude any potential brand names or trademarks.`;
+            
+            if (details.customKeywordPrompt) {
+                keywordRules += `\n\n**--- CRITICAL USER-DEFINED RULES OVERRIDE ---\nTHE FOLLOWING INSTRUCTIONS OVERRIDE ANY PREVIOUS RULES FOR KEYWORDS. YOU MUST FOLLOW THEM PRECISELY, WHILE STILL RESPECTING THE ABSOLUTE PRIMARY RULES ABOVE:**\n"""\n${details.customKeywordPrompt}\n"""`;
+            }
+
             const typeRulesMap = { 'title': titleRules, 'description': descriptionRules, 'summary': summaryRules, 'keywords': keywordRules };
             const englishHeaders = { 'title': 'Title', 'description': 'Description', 'summary': 'Summary', 'keywords': 'Keywords'};
 
@@ -658,7 +696,33 @@
             return `${basePrompt}\n\n${taskDescription}\n\n${rulesDescription}`;
         }
         
-        // --- Validation Engine ---
+        function enforceContentLimits(chineseTitle, text) {
+            let enforcedText = text;
+            switch (chineseTitle) {
+                case '概要':
+                    if (enforcedText.length > 130) {
+                        let truncated = enforcedText.substring(0, 130);
+                        enforcedText = truncated.substring(0, Math.min(truncated.length, truncated.lastIndexOf(' ')) || truncated.length);
+                    }
+                    break;
+                case '关键词':
+                    let keywords = enforcedText.split(',').map(k => k.trim()).filter(Boolean);
+                    if (keywords.length > 30) {
+                        keywords = keywords.slice(0, 30);
+                    }
+                    keywords = keywords.map(kw => {
+                        if (kw.length > 30) {
+                            let truncatedKw = kw.substring(0, 30);
+                            return truncatedKw.substring(0, Math.min(truncatedKw.length, truncatedKw.lastIndexOf(' ')) || truncatedKw.length);
+                        }
+                        return kw;
+                    });
+                    enforcedText = keywords.join(', ');
+                    break;
+            }
+            return enforcedText;
+        }
+
         function validateContent(chineseTitle, text) {
             const results = { isValid: true, messages: [] };
              if (/[一-龠]/.test(text)) { 
@@ -676,9 +740,14 @@
                     if (/[，。！？；：]/.test(text)) { results.isValid = false; results.messages.push(`含中文标点`); }
                     break;
                 case '关键词':
-                    const keywords = text.split(',').map(k => k.trim());
-                    if (keywords.length < 30) { results.isValid = false; results.messages.push(`组数: ${keywords.length} (应为30)`); }
-                    keywords.forEach(kw => { if (kw.length > 30) { results.isValid = false; results.messages.push(`关键词超长 (${kw.length}/30)`); } });
+                    const keywords = text.split(',').map(k => k.trim()).filter(Boolean);
+                    if (keywords.length !== 30) { results.isValid = false; results.messages.push(`组数: ${keywords.length} (应为30)`); }
+                    
+                    const longKeywords = keywords.filter(kw => kw.length > 30);
+                    if (longKeywords.length > 0) {
+                        results.isValid = false;
+                        results.messages.push(`关键词超长 (${longKeywords[0].length}/30)`);
+                    }
                     break;
             }
             return results;
@@ -702,7 +771,7 @@
                     countHtml = `${content.length} / 800`;
                     break;
                 case '关键词':
-                    const keywordCount = content.split(',').length;
+                    const keywordCount = content.split(',').filter(Boolean).length;
                     countHtml = `${keywordCount} / 30 组`;
                     break;
             }
@@ -716,18 +785,12 @@
             return null;
         }
 
-        // --- History Management ---
         function toggleHistory() {
-            const isCollapsed = historyList.classList.contains('max-h-0');
-            if (isCollapsed) {
-                historyList.classList.remove('max-h-0', 'mt-0');
-                historyList.classList.add('max-h-96', 'mt-4'); // A large enough max-height
-                historyArrow.classList.add('rotate-180');
-            } else {
-                historyList.classList.add('max-h-0', 'mt-0');
-                historyList.classList.remove('max-h-96', 'mt-4');
-                historyArrow.classList.remove('rotate-180');
-            }
+            historyList.classList.toggle('max-h-0');
+            historyList.classList.toggle('mt-0');
+            historyList.classList.toggle('max-h-96');
+            historyList.classList.toggle('mt-4');
+            historyArrow.classList.toggle('rotate-180');
         }
         
         async function compressImage(src, maxWidth = 200, maxHeight = 200, quality = 0.7) {
@@ -799,21 +862,37 @@
             }
         }
         
-        async function saveToHistory(product, content, details, imageBase64, imageType) {
+        async function saveToHistory(product, content, details, fullResImageBase64, fullResImageType) {
             const existingIndex = history.findIndex(item => item.product === product);
             if (existingIndex > -1) history.splice(existingIndex, 1);
             
-            let compressedImage = { base64: null, type: null };
-            if (imageBase64 && imageType) {
-                try { compressedImage = await compressImage(`data:${imageType};base64,${imageBase64}`); } catch (e) { console.error("Image compression failed:", e); }
+            let thumbnailImage = { base64: null, type: null };
+            if (fullResImageBase64 && fullResImageType) {
+                const dataUrl = `data:${fullResImageType};base64,${fullResImageBase64}`;
+                try {
+                    thumbnailImage = await compressImage(dataUrl, 200, 200, 0.7);
+                } catch (e) {
+                    console.error("Image compression for history failed:", e);
+                    thumbnailImage = { base64: null, type: null };
+                }
             }
 
-            history.unshift({ product, content, details, imageBase64: compressedImage.base64, imageType: compressedImage.type, originalImageBase64: imageBase64, originalImageType: imageType });
+            history.unshift({
+                product,
+                content,
+                details,
+                imageBase64: thumbnailImage.base64,
+                imageType: thumbnailImage.type
+            });
 
             try {
                 if (history.length > 50) history.pop();
                 localStorage.setItem('asiProductHistory', JSON.stringify(history));
-            } catch (e) { showMessage('历史记录存储失败，可能已满。', 'error'); history.shift(); }
+            } catch (e) {
+                showMessage('历史记录存储失败，可能已满。', 'error');
+                console.error("Failed to save history to localStorage:", e);
+                history.shift();
+            }
             renderHistory();
         }
         async function updateHistoryContent(product, chineseTitle, newContent) {
@@ -849,33 +928,58 @@
 
                 const imageB64 = item.originalImageBase64 || item.imageBase64;
                 const imageT = item.originalImageType || item.imageType;
+                
                 if (imageB64 && imageT) {
                     const dataUrl = `data:${imageT};base64,${imageB64}`;
                     processImageFile(dataURLtoFile(dataUrl, item.product)); 
                 }
                 
                 displayResult(item.content, 'all', item.product);
-                generateAllBtn.innerHTML = '🚀 重新生成'; // Set button text when loading from history
+                generateAllBtn.innerHTML = '🚀 重新生成';
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
         function clearHistory() {
-            if(confirm('您确定要清空所有历史记录吗？此操作不可撤销。')){
-                history = [];
-                localStorage.removeItem('asiProductHistory');
-                renderHistory();
-                showMessage('历史记录已清空。', 'success');
-            }
+            history = [];
+            localStorage.removeItem('asiProductHistory');
+            renderHistory();
+            showMessage('历史记录已清空。', 'success');
         }
         
-        // --- UI Update Functions ---
         function showLoading(isLoading) {
             loader.classList.toggle('hidden', !isLoading);
             if (isLoading) { placeholder.classList.add('hidden'); resultDiv.innerHTML = ''; }
         }
         
+        function buildSectionHtml(chineseTitle, rawContent) {
+            const content = enforceContentLimits(chineseTitle, rawContent);
+
+            const regenType = Object.keys(REGEN_TYPE_MAP).find(key => REGEN_TYPE_MAP[key] === chineseTitle);
+            
+            const validationResult = validateContent(chineseTitle, content);
+            const status = getValidationStatus(validationResult);
+
+            const lockButton = `<button class="lock-btn action-btn" data-type="${regenType}" title="点击锁定"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M11 1a2 2 0 0 0-2 2v4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h5V3a3 3 0 0 1 6 0v4a.5.5 0 0 1-1 0V3a2 2 0 0 0-2-2"/></svg><span>解锁</span></button>`;
+            const translateButton = `<button class="translate-btn action-btn" title="在谷歌翻译中打开"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M4.545 6.714 4.11 8H3l1.862-5h1.284L8 8H6.833l-.435-1.286zm1.634-2.736L5.5 1.956h-.043l-.697 2.022z"/><path d="M0 2a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v3h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-3H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zm7.138 9.995c.193.301.402.583.63.846-.748.575-1.673 1.001-2.768 1.292.178.217.451.635.555.867 1.125-.359 2.08-.844 2.886-1.494.17.302.278.632.365.992.508-.283.92-1.075 1.21-1.96.28-.85.455-1.85.508-2.934h-1.025c-.05.88-.17 1.56-.34 2.11a2.7 2.7 0 0 1-.62 1.087c-.22.252-.494.456-.79.612z"/></svg><span>翻译</span></button>`;
+            const copyButton = `<button class="copy-btn action-btn" title="复制内容"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M5.5 1a.5.5 0 0 1 .5.5V2h6v-.5a.5.5 0 0 1 1 0V2A1.5 1.5 0 0 1 11.5 3.5h-7A1.5 1.5 0 0 1 3 2V1.5a.5.5 0 0 1 .5-.5zM5 3.5a.5.5 0 0 0 .5.5h5a.5.5 0 0 0 0-1h-5a.5.5 0 0 0-.5.5"/></svg><span>复制</span></button>`;
+            const regenButton = `<button class="regenerate-btn action-btn" data-type="${regenType}" title="重新生成此版块"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg><span>重新生成</span></button>`;
+            const counterDiv = createCounterDiv(chineseTitle, content);
+
+            return `<div class="section-wrapper" id="section-${chineseTitle.replace(/\s/g, '-')}">
+                        <h4>
+                            <span>${chineseTitle}</span>
+                            <span class="validation-status">${status}</span>
+                            <div class="ml-auto flex items-center gap-2">${lockButton}${translateButton}${copyButton}${regenButton}</div>
+                        </h4>
+                        <div class="content-block">
+                            ${content.replace(/\n/g, '<br>')}
+                            ${counterDiv ? counterDiv.outerHTML : ''}
+                        </div>
+                     </div>`;
+        }
+
         function parseAndMergeResults(newText, lockedContentMap, productIdea) {
-            let finalHtml = `<h3>${productIdea}</h3>`;
+            let html = `<h3>${productIdea}</h3>`;
             const allTypes = ['title', 'description', 'summary', 'keywords'];
             
             const newSections = new Map();
@@ -893,44 +997,16 @@
             }
 
             allTypes.forEach(regenType => {
-                let sectionHtml;
                 if (lockedContentMap.has(regenType)) {
-                    sectionHtml = lockedContentMap.get(regenType);
+                    html += lockedContentMap.get(regenType);
                 } else {
                     const content = newSections.get(regenType) || '生成失败或无内容返回';
                     const chineseTitle = REGEN_TYPE_MAP[regenType];
-                    sectionHtml = buildSectionHtml(chineseTitle, content, true); // isNew = true
+                    html += buildSectionHtml(chineseTitle, content);
                 }
-                finalHtml += sectionHtml;
             });
 
-            return finalHtml;
-        }
-
-        function buildSectionHtml(chineseTitle, content, isNew) {
-            const regenType = Object.keys(REGEN_TYPE_MAP).find(key => REGEN_TYPE_MAP[key] === chineseTitle);
-            
-            const validationResult = validateContent(chineseTitle, content);
-            const status = getValidationStatus(validationResult);
-            const isLocked = !isNew;
-
-            const lockButton = `<button class="lock-btn action-btn" data-type="${regenType}" title="${isLocked ? '点击解锁' : '点击锁定'}">${isLocked ? `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2"/></svg><span>锁定</span>` : `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M11 1a2 2 0 0 0-2 2v4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h5V3a3 3 0 0 1 6 0v4a.5.5 0 0 1-1 0V3a2 2 0 0 0-2-2"/></svg><span>解锁</span>`}</button>`;
-            const translateButton = `<button class="translate-btn action-btn" title="在谷歌翻译中打开"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M4.545 6.714 4.11 8H3l1.862-5h1.284L8 8H6.833l-.435-1.286zm1.634-2.736L5.5 1.956h-.043l-.697 2.022z"/><path d="M0 2a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v3h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-3H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zm7.138 9.995c.193.301.402.583.63.846-.748.575-1.673 1.001-2.768 1.292.178.217.451.635.555.867 1.125-.359 2.08-.844 2.886-1.494.17.302.278.632.365.992.508-.283.92-1.075 1.21-1.96.28-.85.455-1.85.508-2.934h-1.025c-.05.88-.17 1.56-.34 2.11a2.7 2.7 0 0 1-.62 1.087c-.22.252-.494.456-.79.612z"/></svg><span>翻译</span></button>`;
-            const copyButton = `<button class="copy-btn action-btn" title="复制内容"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M5.5 1a.5.5 0 0 1 .5.5V2h6v-.5a.5.5 0 0 1 1 0V2A1.5 1.5 0 0 1 11.5 3.5h-7A1.5 1.5 0 0 1 3 2V1.5a.5.5 0 0 1 .5-.5zM5 3.5a.5.5 0 0 0 .5.5h5a.5.5 0 0 0 0-1h-5a.5.5 0 0 0-.5.5"/></svg><span>复制</span></button>`;
-            const regenButton = `<button class="regenerate-btn action-btn" data-type="${regenType}" title="重新生成此版块" ${isLocked ? 'disabled' : ''}><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg><span>重新生成</span></button>`;
-            const counterDiv = createCounterDiv(chineseTitle, content);
-
-            return `<div class="section-wrapper ${isLocked ? 'locked' : ''}" id="section-${chineseTitle.replace(/\s/g, '-')}">
-                        <h4>
-                            <span>${chineseTitle}</span>
-                            <span class="validation-status">${status}</span>
-                            <div class="ml-auto flex items-center gap-2">${lockButton}${translateButton}${copyButton}${regenButton}</div>
-                        </h4>
-                        <div class="content-block">
-                            ${content}
-                            ${counterDiv ? counterDiv.outerHTML : ''}
-                        </div>
-                     </div>`;
+            return html;
         }
 
         function displayResult(text, type, productIdea = '') {
@@ -954,12 +1030,12 @@
                     }
                     const content = sections[i + 1].trim();
                     const chineseTitle = ENGLISH_TITLE_MAP[englishTitle] || englishTitle;
-                    html += buildSectionHtml(chineseTitle, content, true); // isNew = true
+                    html += buildSectionHtml(chineseTitle, content);
                 }
             }
             resultDiv.innerHTML = html;
         }
-        
+
         function convertHtmlToStructuredText(htmlContent) {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = htmlContent;
@@ -991,14 +1067,12 @@
             return new File([u8arr], filename, {type:mime});
         }
         
-        // --- Excel Export Functions ---
         function parseContentToObject(contentString) {
             const data = {
                 '产品名称': '', '产品描述': '', '概要': '', '关键词': '',
             };
             if (!contentString) return data;
 
-            // Use the map to find the correct chinese title
             const sections = contentString.split(/### (Title|Description|Summary|Keywords)\n---/g).filter(s => s && s.trim() !== '');
 
             for (let i = 0; i < sections.length; i += 2) {
@@ -1006,7 +1080,7 @@
                 const content = sections[i + 1] ? sections[i+1].trim() : '';
                 const chineseTitle = ENGLISH_TITLE_MAP[englishTitle];
                 if (chineseTitle) {
-                    data[chineseTitle] = content;
+                    data[chineseTitle] = enforceContentLimits(chineseTitle, content);
                 }
             }
             return data;
@@ -1033,41 +1107,60 @@
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, 'ASI Products');
 
-            // Set column widths
             worksheet["!cols"] = [
-                { wch: 30 }, // 产品概念
-                { wch: 50 }, // 产品名称
-                { wch: 80 }, // 产品描述
-                { wch: 50 }, // 概要
-                { wch: 80 }, // 关键词
+                { wch: 30 }, { wch: 50 }, { wch: 80 }, { wch: 50 }, { wch: 80 },
             ];
+
+            // Apply wrap text style to all cells for better readability
+            const range = XLSX.utils.decode_range(worksheet['!ref']);
+            for (let R = range.s.r; R <= range.e.r; ++R) { 
+                for(let C = range.s.c; C <= range.e.c; ++C) {
+                    const cell_address = { c: C, r: R };
+                    const cell_ref = XLSX.utils.encode_cell(cell_address);
+                    if (worksheet[cell_ref] && worksheet[cell_ref].t === 's') { 
+                        if (!worksheet[cell_ref].s) worksheet[cell_ref].s = {};
+                        worksheet[cell_ref].s.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+                    }
+                }
+            }
 
             XLSX.writeFile(workbook, `ASI_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
             showMessage('导出成功！', 'success');
         }
 
-
-        // --- Gemini API Call ---
         async function callGeminiAPI(prompt, base64Data, mimeType) {
             const userApiKey = localStorage.getItem('geminiApiKey');
             if (!userApiKey) {
                 throw new Error('API密钥未配置。');
             }
 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${userApiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${userApiKey}`;
             const userParts = [{ text: prompt }];
-            if (base64Data && mimeType) { userParts.unshift({ inlineData: { mimeType: mimeType, data: base64Data } }); }
+            if (base64Data && mimeType) {
+                userParts.unshift({ inlineData: { mimeType: mimeType, data: base64Data } });
+            }
+            
             const payload = {
                 contents: [{ role: "user", parts: userParts }],
                 generationConfig: { temperature: 0.6, topP: 1.0, maxOutputTokens: 8192 }
             };
+
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             
             if (!response.ok) {
-                if (response.status === 401 || response.status === 403) {
-                    throw new Error('API密钥无效或权限不足 (401/403)。请检查您的密钥。');
+                let errorBody = '无法读取错误详情';
+                try {
+                    const errorJson = await response.json();
+                    errorBody = errorJson?.error?.message || response.statusText;
+                     if(errorJson?.error?.status === 'INVALID_ARGUMENT' && errorJson?.error?.message.includes("API_KEY_INVALID")){
+                         throw new Error('API密钥无效 (INVALID_ARGUMENT)。请检查您的密钥。');
+                     }
+                } catch(e) {
+                    if (e.message.includes('API密钥无效')) throw e;
+                    try { errorBody = await response.text(); } catch(e2) { /* ignore */}
                 }
-                throw new Error(`API请求失败: ${response.status} ${await response.text()}`);
+                
+                throw new Error(`API请求失败: ${response.status} ${errorBody}`);
             }
 
             const result = await response.json();
@@ -1081,7 +1174,8 @@
             }
 
             if (candidate) {
-                switch (candidate.finishReason) {
+                const finishReason = candidate.finishReason || '未知';
+                switch (finishReason) {
                     case 'SAFETY':
                         throw new Error("内容可能违反了安全策略，请修改输入后重试。");
                     case 'MAX_TOKENS':
@@ -1089,7 +1183,7 @@
                     case 'RECITATION':
                         throw new Error("内容因引用受版权保护的材料而被阻止。");
                     default:
-                        throw new Error(`AI未能生成有效内容。原因: ${candidate.finishReason || '未知'}`);
+                        throw new Error(`AI未能生成有效内容。原因: ${finishReason}`);
                 }
             }
             
