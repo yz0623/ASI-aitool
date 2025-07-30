@@ -295,11 +295,13 @@
         const customPromptContainer = document.getElementById('customPromptContainer');
         const customPromptArrow = document.getElementById('customPromptArrow');
         const customKeywordPrompt = document.getElementById('customKeywordPrompt');
+        const productSpecsInput = document.getElementById('productSpecs'); 
         
         let history = [];
         let uploadedImageBase64 = null;
         let uploadedImageType = null;
 
+        // Mapping for regeneration types to Chinese titles
         const REGEN_TYPE_MAP = { 
             'title': '产品名称', 
             'description': '产品描述', 
@@ -307,6 +309,7 @@
             'keywords': '关键词' 
         };
         
+        // Mapping for English titles to Chinese titles
         const ENGLISH_TITLE_MAP = {
             'Title': '产品名称',
             'Description': '产品描述',
@@ -314,37 +317,43 @@
             'Keywords': '关键词'
         };
 
+        // Reverse mapping for Chinese titles to English titles
         const REVERSE_ENGLISH_TITLE_MAP = Object.fromEntries(Object.entries(ENGLISH_TITLE_MAP).map(a => a.reverse()));
 
 
-        document.addEventListener('DOMContentLoaded', initApp);
-        generateAllBtn.addEventListener('click', () => handleGeneration('all'));
-        clearAllBtn.addEventListener('click', clearAllInputs);
-        clearHistoryBtn.addEventListener('click', clearHistory);
-        exportAllBtn.addEventListener('click', () => exportToExcel(history));
-        historyHeader.addEventListener('click', (e) => {
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', initApp); // Initialize app on DOM load
+        generateAllBtn.addEventListener('click', () => handleGeneration('all')); // Generate all content
+        clearAllBtn.addEventListener('click', clearAllInputs); // Clear all input fields
+        clearHistoryBtn.addEventListener('click', clearHistory); // Clear history
+        exportAllBtn.addEventListener('click', () => exportToExcel(history)); // Export history to Excel
+        historyHeader.addEventListener('click', (e) => { // Toggle history visibility
             if (!e.target.closest('#clearHistoryBtn') && !e.target.closest('#exportAllBtn')) {
                 toggleHistory();
             }
         });
-        historyList.addEventListener('click', handleHistoryListClick);
-        imageUpload.addEventListener('change', handleImageFile);
-        removeImageBtn.addEventListener('click', removeImage);
-        document.addEventListener('paste', handlePaste);
-        resultDiv.addEventListener('click', handleResultClick);
-        saveApiKeyBtn.addEventListener('click', saveApiKey);
-        toggleCustomPromptBtn.addEventListener('click', toggleCustomPrompt);
-        customKeywordPrompt.addEventListener('input', saveCustomPrompt);
+        historyList.addEventListener('click', handleHistoryListClick); // Handle clicks on history items
+        imageUpload.addEventListener('change', handleImageFile); // Handle image file upload
+        removeImageBtn.addEventListener('click', removeImage); // Remove uploaded image
+        document.addEventListener('paste', handlePaste); // Handle image paste from clipboard
+        resultDiv.addEventListener('click', handleResultClick); // Handle clicks on generated result section
+        saveApiKeyBtn.addEventListener('click', saveApiKey); // Save API key
+        toggleCustomPromptBtn.addEventListener('click', toggleCustomPrompt); // Toggle custom keyword prompt visibility
+        customKeywordPrompt.addEventListener('input', saveCustomPrompt); // Save custom prompt on input
+        productSpecsInput.addEventListener('input', handleProductSpecsInput); // Handle product specs input (for potential future enhancements)
 
+
+        // Initialize the application
         function initApp() {
-            loadHistory();
+            loadHistory(); // Load saved history
             const savedKey = localStorage.getItem('geminiApiKey');
             if (!savedKey) {
-                showApiKeyModal('欢迎使用！请先配置您的API密钥。');
+                showApiKeyModal('欢迎使用！请先配置您的API密钥。'); // Prompt for API key if not found
             }
-            loadCustomPrompt();
+            loadCustomPrompt(); // Load custom keyword prompt
         }
         
+        // Load custom keyword prompt from local storage
         function loadCustomPrompt() {
             const savedPrompt = localStorage.getItem('customKeywordPrompt');
             if (savedPrompt) {
@@ -352,83 +361,96 @@
             }
         }
 
+        // Save custom keyword prompt to local storage
         function saveCustomPrompt() {
             localStorage.setItem('customKeywordPrompt', customKeywordPrompt.value);
         }
 
+        // Toggle visibility of custom keyword prompt
         function toggleCustomPrompt() {
             customPromptContainer.classList.toggle('hidden');
             customPromptArrow.classList.toggle('rotate-180');
         }
 
+        // Display API key modal with a given message
         function showApiKeyModal(message) {
             apiKeyMessage.textContent = message || '为了使用AI功能，请输入您的 Google Gemini API 密钥。密钥将仅存储在您的浏览器本地。';
             apiKeyModal.classList.remove('hidden');
+            // Ensure the modal is visible and on top
+            apiKeyModal.style.display = 'flex';
+            apiKeyInput.focus(); // Focus on the input field
         }
 
+        // Save API key to local storage
         function saveApiKey() {
             const key = apiKeyInput.value.trim();
             if (key) {
                 localStorage.setItem('geminiApiKey', key);
-                apiKeyModal.classList.add('hidden');
+                apiKeyModal.style.display = 'none'; // Hide modal
                 showMessage('API密钥已保存！', 'success');
             } else {
                 showMessage('请输入有效的API密钥。', 'error');
             }
         }
 
+        // Handle image file selection
         function handleImageFile(event) {
             const file = event.target.files[0];
             if (file) processImageFile(file);
         }
         
+        // Handle image paste from clipboard
         function handlePaste(event) {
             const items = (event.clipboardData || event.originalEvent.clipboardData).items;
             for (const item of items) {
                 if (item.kind === 'file' && item.type.startsWith('image/')) {
-                    event.preventDefault(); 
+                    event.preventDefault(); // Prevent default paste behavior
                     processImageFile(item.getAsFile());
                     break; 
                 }
             }
         }
 
+        // Process the image file (read as Data URL and display preview)
         function processImageFile(file) {
              if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
-                uploadedImageBase64 = e.target.result.split(',')[1];
-                uploadedImageType = file.type;
-                imagePreview.src = e.target.result;
-                imagePreviewContainer.classList.remove('hidden');
-                uploadBox.classList.add('hidden');
+                uploadedImageBase64 = e.target.result.split(',')[1]; // Get base64 data
+                uploadedImageType = file.type; // Get image type
+                imagePreview.src = e.target.result; // Set image preview source
+                imagePreviewContainer.classList.remove('hidden'); // Show preview container
+                uploadBox.classList.add('hidden'); // Hide upload box
             };
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(file); // Read file as Data URL
         }
 
+        // Remove the uploaded image
         function removeImage() {
             uploadedImageBase64 = null;
             uploadedImageType = null;
             imagePreview.src = '';
-            imageUpload.value = '';
-            imagePreviewContainer.classList.add('hidden');
-            uploadBox.classList.remove('hidden');
+            imageUpload.value = ''; // Clear file input
+            imagePreviewContainer.classList.add('hidden'); // Hide preview container
+            uploadBox.classList.remove('hidden'); // Show upload box
         }
         
+        // Clear all input fields and results
         function clearAllInputs() {
-            removeImage();
+            removeImage(); // Remove image
             document.getElementById('productIdea').value = '';
             document.getElementById('productMaterial').value = '';
             document.getElementById('productSpecs').value = '';
             document.getElementById('productScenarios').value = '';
             document.getElementById('referenceText').value = '';
             document.getElementById('referenceKeywords').value = '';
-            resultDiv.innerHTML = '';
-            placeholder.classList.remove('hidden');
-            generateAllBtn.innerHTML = '一键生成';
+            resultDiv.innerHTML = ''; // Clear result display
+            placeholder.classList.remove('hidden'); // Show placeholder
+            generateAllBtn.innerHTML = '一键生成'; // Reset generate button text
             showMessage('所有内容已清空。', 'success');
         }
         
+        // Handle clicks within the result display area (regenerate, copy, translate, lock)
         function handleResultClick(event) {
             const regenBtn = event.target.closest('.regenerate-btn');
             const copyBtn = event.target.closest('.copy-btn');
@@ -437,51 +459,75 @@
 
              if (regenBtn) {
                 const type = regenBtn.dataset.type;
-                handleSingleRegeneration(type);
+                handleSingleRegeneration(type); // Regenerate a single section
             } else if (copyBtn) {
                 const contentBlock = copyBtn.closest('.section-wrapper').querySelector('.content-block');
                 const textToCopy = getCleanTextFromBlock(contentBlock);
-                copyToClipboard(textToCopy);
+                copyToClipboard(textToCopy); // Copy content to clipboard
             } else if (translateBtn) {
                 const contentBlock = translateBtn.closest('.section-wrapper').querySelector('.content-block');
                 const textToTranslate = getCleanTextFromBlock(contentBlock);
-                openGoogleTranslate(textToTranslate);
+                openGoogleTranslate(textToTranslate); // Open content in Google Translate
             } else if (lockBtn) {
-                toggleLock(lockBtn);
+                toggleLock(lockBtn); // Toggle section lock state
             }
         }
         
+        // Extract clean text from a content block, handling <br> tags
         function getCleanTextFromBlock(contentBlock) {
             if (!contentBlock) return '';
             const clone = contentBlock.cloneNode(true);
+
+            // Remove the counter div before extracting text
             const counter = clone.querySelector('.absolute.bottom-2.right-2');
             if (counter) {
                 counter.remove();
             }
-            return clone.innerText.trim();
+
+            let textContent = '';
+            // Iterate through child nodes to explicitly handle <br> tags
+            clone.childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    // For text nodes, append their content
+                    textContent += node.textContent;
+                } else if (node.tagName === 'BR') {
+                    // For <br> tags, append a newline character
+                    textContent += '\n';
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    // For other element nodes (e.g., nested spans, though unlikely in content-block),
+                    // recursively get their innerText.
+                    textContent += node.innerText; 
+                }
+            });
+
+            return textContent.trim();
         }
 
+        // Toggle the lock state of a content section
         function toggleLock(lockBtn) {
             const section = lockBtn.closest('.section-wrapper');
             const isLocked = section.classList.toggle('locked');
             const regenBtn = section.querySelector('.regenerate-btn');
             
+            // Update lock button icon and text
             lockBtn.innerHTML = isLocked ? 
                 `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2"/></svg><span>锁定</span>` :
-                `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M11 1a2 2 0 0 0-2 2v4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h5V3a3 3 0 0 1 6 0v4a.5.5 0 0 1-1 0V3a2 2 0 0 0-2-2"/></svg><span>解锁</span>`;
+                `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M11 1a2 2 0 0 0-2 2v4a2 2 0 0 1 2 2v5a2 2 0 = 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h5V3a3 3 0 0 1 6 0v4a.5.5 0 0 1-1 0V3a2 2 0 0 0-2-2"/></svg><span>解锁</span>`;
             
             lockBtn.setAttribute('title', isLocked ? '点击解锁' : '点击锁定');
             if (regenBtn) {
-                regenBtn.disabled = isLocked;
+                regenBtn.disabled = isLocked; // Disable regenerate button if locked
             }
         }
 
+        // Open content in Google Translate
         function openGoogleTranslate(text) {
             const encodedText = encodeURIComponent(text);
             const url = `https://translate.google.com/?sl=en&tl=zh-CN&text=${encodedText}&op=translate`;
             window.open(url, '_blank');
         }
 
+        // Copy text to clipboard
         function copyToClipboard(text) {
             const textArea = document.createElement("textarea");
             textArea.value = text;
@@ -497,11 +543,13 @@
             document.body.removeChild(textArea);
         }
         
+        // Extract clean content by removing markdown headers
         function extractCleanContent(rawText) {
              if (!rawText) return '';
              return rawText.replace(/^###\s+(Title|Summary|Description|Keywords)\s*\n---\n?/, '').trim();
         }
 
+        // Handle overall content generation (all sections or unlocked sections)
         async function handleGeneration(type) {
             const productIdea = document.getElementById('productIdea').value.trim();
             if (!productIdea) {
@@ -513,6 +561,7 @@
             const lockedContent = new Map();
             const unlockedTypes = new Set(['title', 'description', 'summary', 'keywords']);
 
+            // Identify locked sections and their content
             sections.forEach(section => {
                 if (section.classList.contains('locked')) {
                     const type = section.querySelector('.regenerate-btn')?.dataset.type;
@@ -523,6 +572,7 @@
                 }
             });
 
+            // If all sections are locked, no generation is needed
             if (unlockedTypes.size === 0 && sections.length > 0) {
                 showMessage('所有模块都已锁定，无需生成。', 'info');
                 return;
@@ -530,52 +580,65 @@
 
             const typesToGenerate = Array.from(unlockedTypes);
             if (typesToGenerate.length === 0) {
-                typesToGenerate.push('all');
+                typesToGenerate.push('all'); // If no unlocked types, generate all (first run or all were locked then unlocked)
             }
 
+            // Gather product details from input fields
             const material = document.getElementById('productMaterial').value.trim();
-            const specs = document.getElementById('productSpecs').value.trim();
+            let specs = document.getElementById('productSpecs').value.trim(); // Get raw specs
             const scenarios = document.getElementById('productScenarios').value.trim();
             const referenceText = document.getElementById('referenceText').value.trim();
             const referenceKeywords = document.getElementById('referenceKeywords').value.trim();
             const customKeywordText = customKeywordPrompt.value.trim();
+
+            // Convert cm to inches for prompt if 'cm' is present in specs
+            const cmToInchConversion = convertCmToInches(specs);
+            if (cmToInchConversion) {
+                specs = cmToInchConversion; // Use the formatted string for the prompt
+            }
+
             const details = { material, specs, scenarios, referenceText, referenceKeywords, customKeywordPrompt: customKeywordText };
             
+            // Determine generation mode based on number of types to generate
             const generationMode = typesToGenerate.length >= 4 ? 'all' : typesToGenerate.join(',');
             const prompt = createPrompt(generationMode, productIdea, details);
 
-            showLoading(true);
+            showLoading(true); // Show loading indicator
             try {
                 const text = await callGeminiAPI(prompt, uploadedImageBase64, uploadedImageType);
                 
+                // Merge new results with locked content
                 if (lockedContent.size > 0) {
                     const newResultHtml = parseAndMergeResults(text, lockedContent, productIdea);
                     resultDiv.innerHTML = newResultHtml;
                 } else {
-                    displayResult(text, 'all', productIdea);
+                    displayResult(text, 'all', productIdea); // Display all new results
                 }
                 
+                // Save the full content to history
                 const fullContentForHistory = resultDiv.innerHTML;
                 const fullTextContent = convertHtmlToStructuredText(fullContentForHistory);
                 await saveToHistory(productIdea, fullTextContent, details, uploadedImageBase64, uploadedImageType);
                 
-                generateAllBtn.innerHTML = '🚀 重新生成';
+                generateAllBtn.innerHTML = '🚀 重新生成'; // Update button text
 
             } catch (error) {
                 console.error('API Call Error:', error);
                 const errorMessage = error.message || '未知错误';
-                displayResult(`抱歉，调用AI服务时出错：${errorMessage}`, 'error');
+                displayResult(`抱歉，调用AI服务时出错：${errorMessage}`, 'error'); // Display error message
                 showMessage(`AI服务调用失败: ${errorMessage}`, 'error');
 
-                if (errorMessage.includes('401') || errorMessage.includes('API密钥') || errorMessage.includes('API_KEY_INVALID')) {
+                // If API key is invalid, show modal
+                if (errorMessage.includes('401') || errorMessage.includes('API密钥') || errorMessage.includes('API_KEY_INVALID') || errorMessage.includes('API key expired')) {
                     showApiKeyModal('API密钥无效或缺失，请更新或添加密钥。');
                 }
 
             } finally {
-                showLoading(false);
+                showLoading(false); // Hide loading indicator
             }
         }
         
+        // Handle regeneration of a single content section
         async function handleSingleRegeneration(type) {
             const productIdea = document.getElementById('productIdea').value.trim();
             if (!productIdea) {
@@ -583,13 +646,20 @@
                 return;
             }
 
+            // Gather product details (same as handleGeneration)
             const material = document.getElementById('productMaterial').value.trim();
-            const specs = document.getElementById('productSpecs').value.trim();
+            let specs = document.getElementById('productSpecs').value.trim();
             const scenarios = document.getElementById('productScenarios').value.trim();
             const referenceText = document.getElementById('referenceText').value.trim();
             const referenceKeywords = document.getElementById('referenceKeywords').value.trim();
             const customKeywordText = customKeywordPrompt.value.trim();
-            const details = { material, specs, scenarios, referenceText, referenceKeywords, customKeywordPrompt: customKeywordText };
+
+            const cmToInchConversion = convertCmToInches(specs);
+            if (cmToInchConversion) {
+                specs = cmToInchConversion;
+            }
+
+            const details = { material, specs, scenarios, referenceText, referenceKeywords, customKeywordText: customKeywordText };
 
             const sectionTitle = REGEN_TYPE_MAP[type];
             const sectionWrapper = document.getElementById(`section-${sectionTitle.replace(/\s/g, '-')}`);
@@ -597,6 +667,7 @@
 
             const regenerateButton = sectionWrapper.querySelector('.regenerate-btn');
             
+            // Show mini loader and disable button during regeneration
             if (regenerateButton) {
                 regenerateButton.innerHTML = `<span class="mini-loader-inline"></span>`;
                 regenerateButton.disabled = true;
@@ -608,40 +679,86 @@
                 const rawText = await callGeminiAPI(prompt, uploadedImageBase64, uploadedImageType);
                 let newCleanText = extractCleanContent(rawText);
 
-                newCleanText = enforceContentLimits(sectionTitle, newCleanText);
+                newCleanText = enforceContentLimits(sectionTitle, newCleanText); // Enforce content limits
 
                 const contentBlock = sectionWrapper.querySelector('.content-block');
-                contentBlock.innerText = newCleanText;
+                contentBlock.innerText = newCleanText; // Update content
                 
-                const counterDiv = createCounterDiv(sectionTitle, newCleanText);
+                const counterDiv = createCounterDiv(sectionTitle, newCleanText); // Update counter
                 if (counterDiv) contentBlock.appendChild(counterDiv);
 
-                const validationResult = validateContent(sectionTitle, newCleanText);
+                const validationResult = validateContent(sectionTitle, newCleanText); // Validate content
                 const statusSpan = sectionWrapper.querySelector('.validation-status');
                 if(statusSpan) {
-                     statusSpan.innerHTML = getValidationStatus(validationResult);
+                     statusSpan.innerHTML = getValidationStatus(validationResult); // Update validation status
                 }
                 
-                await updateHistoryContent(productIdea, sectionTitle, newCleanText);
+                await updateHistoryContent(productIdea, sectionTitle, newCleanText); // Update history
             } catch (error) {
                  const errorMessage = error.message || '未知错误';
                  showMessage(`重新生成'${sectionTitle}'失败: ${errorMessage}`, 'error');
-                 if (errorMessage.includes('401') || errorMessage.includes('API密钥') || errorMessage.includes('API_KEY_INVALID')) {
+                 if (errorMessage.includes('401') || errorMessage.includes('API密钥') || errorMessage.includes('API_KEY_INVALID') || errorMessage.includes('API key expired')) {
                     showApiKeyModal('API密钥无效或缺失，请更新或添加密钥。');
                  }
             } finally {
+                 // Restore regenerate button state
                  if (regenerateButton) {
                     regenerateButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg><span>重新生成</span>`;
                     regenerateButton.disabled = false;
                 }
             }
         }
-        
+
+        /**
+         * Converts centimeters to inches within a given string.
+         * Looks for patterns like "10cm", "20 cm", "30.5cm", etc.
+         * @param {string} specsString The input string containing specifications.
+         * @returns {string} The updated string with cm values converted to inches and appended, or original string if no cm found.
+         */
+        function convertCmToInches(specsString) {
+            if (!specsString) return '';
+            let convertedString = specsString;
+            // Regex to find numbers followed by 'cm' or ' cm'
+            const cmRegex = /(\d+(\.\d+)?)\s*cm/gi; 
+            let match;
+            let replacements = [];
+
+            // Find all matches and store them
+            while ((match = cmRegex.exec(specsString)) !== null) {
+                const cmValue = parseFloat(match[1]);
+                if (!isNaN(cmValue)) {
+                    const inchValue = (cmValue / 2.54).toFixed(2); // Convert to inches, 2 decimal places
+                    replacements.push({
+                        original: match[0],
+                        replacement: `${match[0]} (approx ${inchValue} inches)`
+                    });
+                }
+            }
+
+            // Apply replacements from back to front to avoid index issues
+            for (let i = replacements.length - 1; i >= 0; i--) {
+                const rep = replacements[i];
+                // Use a global regex to replace all occurrences, but only the specific matched string
+                convertedString = convertedString.split(rep.original).join(rep.replacement);
+            }
+
+            return convertedString;
+        }
+
+        // This function is currently not modifying the input field directly,
+        // as the request was to include it in the *description* generated by AI.
+        // If direct input field modification is desired, this is where it would go.
+        function handleProductSpecsInput() {
+            // No direct modification of input field here.
+        }
+
+        // Create the prompt string for the Gemini API call
         function createPrompt(type, product, details) {
             let productDetailsSection = "\n**Product Details (Use these text details to supplement the provided image):**";
             let hasDetails = false;
             if (details.material) { productDetailsSection += `\n- Material: ${details.material}`; hasDetails = true; }
-            if (details.specs) { productDetailsSection += `\n- Specifications: ${details.specs}`; hasDetails = true; }
+            // Use the potentially converted specs for the prompt
+            if (details.specs) { productDetailsSection += `\n- Specifications: ${details.specs}`; hasDetails = true; } 
             if (details.scenarios) { productDetailsSection += `\n- Key Selling Points/Scenarios: ${details.scenarios}`; hasDetails = true; }
             if (details.referenceText) {
                 productDetailsSection += `\n- **Reference Text (Crucial):** """${details.referenceText}"""`;
@@ -655,7 +772,7 @@
             const basePrompt = `You are an expert copywriter for the B2B promotional products platform ASI. Your primary role is to act as a market researcher and content generator.\n\n**Step 1: Simulated Web Research.**\nBased on the user's 'Product Concept', you must first perform a simulated web search on popular e-commerce sites (like Amazon.com) and promotional product platforms (like ASI, 4imprint) to gather typical features, materials, specifications, and marketing angles for this type of product. You must use this simulated research as the primary context for your writing, especially if the user has not provided detailed reference text. For example, if the user enters "umbrella", you should imagine searching for "promotional travel umbrella" and "custom logo umbrella" and use the common features you find (e.g., auto-open, fiberglass ribs, SPF 50+ canopy) to enrich your output.\n\n**Step 2: Content Generation.**\nUsing the context from your research AND the specific details provided by the user, generate the required content. User-provided details (like material, specs, reference text) ALWAYS take precedence over your general research.\n\n**User's Input:**\n- Product Concept: ${product}${hasDetails ? productDetailsSection : ''}\n\n**CRUCIAL, UNBREAKABLE RULES:**\n- **ALL OUTPUT MUST BE IN ENGLISH.** Do not include any Chinese characters or any other language in the output.\n- **YOUR RESPONSE MUST START DIRECTLY WITH '### Title'.** Any other starting text, preamble, or conversational filler will cause a system crash.`;
             
             const titleRules = `**Title Rules:**\n1. Generate 5 unique product names. Each on a new line.\n2. Each name MUST be Title Case (first letter of each word capitalized).\n3. Each name MUST be under 60 characters.\n4. A name MUST NOT contain any repeated words.`;
-            const summaryRules = `**Summary Rules:**\n1. Generate one concise paragraph summarizing the product's key highlights.\n2. The summary MUST be under 130 characters. This is an absolute limit.`;
+            const summaryRules = `**Summary Rules:**\n1. Generate one concise paragraph summarizing the product's key highlights.\n2. The summary MUST be a complete, grammatically correct sentence. Prioritize sentence completeness over hitting the exact 130-character limit. It should be under 130 characters.`; // Modified rule
             const descriptionRules = `**Description Rules:**\n1. The description MUST be under 800 characters.\n2. It MUST NOT contain any Chinese punctuation. Use only standard English punctuation.\n3. It MUST NOT contain any price-related language (e.g., "$", "price", "cost").\n4. Structure the paragraph around: Material, Function, Usage Scenarios, Advantages, and an assurance statement.`;
             
             let keywordRules = `**Keywords Rules:**
@@ -696,13 +813,25 @@
             return `${basePrompt}\n\n${taskDescription}\n\n${rulesDescription}`;
         }
         
+        // Enforce content length and format limits based on content type
         function enforceContentLimits(chineseTitle, text) {
             let enforcedText = text;
             switch (chineseTitle) {
                 case '概要':
+                    // If the text is longer than 130 characters, try to truncate at the last full stop or word boundary.
                     if (enforcedText.length > 130) {
                         let truncated = enforcedText.substring(0, 130);
-                        enforcedText = truncated.substring(0, Math.min(truncated.length, truncated.lastIndexOf(' ')) || truncated.length);
+                        let lastFullStop = truncated.lastIndexOf('.');
+                        let lastSpace = truncated.lastIndexOf(' ');
+
+                        if (lastFullStop !== -1 && lastFullStop > truncated.length - 20) { // If a full stop is near the end
+                            enforcedText = truncated.substring(0, lastFullStop + 1);
+                        } else if (lastSpace !== -1 && lastSpace > truncated.length - 20) { // If a space is near the end
+                            enforcedText = truncated.substring(0, lastSpace);
+                        } else {
+                            // Fallback to simple truncation if no good boundary is found near the limit
+                            enforcedText = truncated;
+                        }
                     }
                     break;
                 case '关键词':
@@ -723,21 +852,31 @@
             return enforcedText;
         }
 
+        // Validate content against defined rules
         function validateContent(chineseTitle, text) {
             const results = { isValid: true, messages: [] };
-             if (/[一-龠]/.test(text)) { 
+             if (/[一-龠]/.test(text)) { // Check for Chinese characters
                 results.isValid = false; 
                 results.messages.push(`包含中文`); 
             }
             switch (chineseTitle) {
                 case '产品名称':
+                    // No specific validation rules beyond general Chinese character check
                     break;
                 case '概要':
-                     if (text.length > 130) { results.isValid = false; results.messages.push(`概要超长 (${text.length}/130)`); }
+                     // Changed validation to check for a full stop at the end for sentence completeness
+                    if (text.length > 130) { 
+                        results.isValid = false; 
+                        results.messages.push(`概要超长 (${text.length}/130)`); 
+                    }
+                    if (!text.endsWith('.') && text.length > 0) { // Check for full stop at the end if not empty
+                        results.isValid = false;
+                        results.messages.push(`非完整句子`);
+                    }
                     break;
                 case '产品描述':
                     if (text.length > 800) { results.isValid = false; results.messages.push(`描述超长 (${text.length}/800)`); }
-                    if (/[，。！？；：]/.test(text)) { results.isValid = false; results.messages.push(`含中文标点`); }
+                    if (/[，。！？；：]/.test(text)) { results.isValid = false; results.messages.push(`含中文标点`); } // Check for Chinese punctuation
                     break;
                 case '关键词':
                     const keywords = text.split(',').map(k => k.trim()).filter(Boolean);
@@ -753,6 +892,7 @@
             return results;
         }
         
+        // Get validation status HTML string
         function getValidationStatus(validationResult) {
             if (!validationResult.isValid) {
                 const message = validationResult.messages.join(', ');
@@ -761,6 +901,7 @@
             return '<span class="text-green-500">✅</span>';
         }
 
+        // Create a counter div for content length/count
         function createCounterDiv(chineseTitle, content) {
             let countHtml = '';
              switch (chineseTitle) {
@@ -785,6 +926,7 @@
             return null;
         }
 
+        // Toggle history list visibility
         function toggleHistory() {
             historyList.classList.toggle('max-h-0');
             historyList.classList.toggle('mt-0');
@@ -793,6 +935,7 @@
             historyArrow.classList.toggle('rotate-180');
         }
         
+        // Compress image for history storage (thumbnail)
         async function compressImage(src, maxWidth = 200, maxHeight = 200, quality = 0.7) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -819,6 +962,7 @@
             });
         }
         
+        // Load history from local storage
         function loadHistory() {
             try {
                 const storedHistory = localStorage.getItem('asiProductHistory');
@@ -826,6 +970,7 @@
             } catch (e) { console.error("Failed to load history:", e); localStorage.removeItem('asiProductHistory'); }
         }
 
+        // Render history list items
         function renderHistory() {
             historyList.innerHTML = '';
             if(history.length === 0){
@@ -844,6 +989,7 @@
             });
         }
 
+        // Handle clicks on history list (view or export)
         function handleHistoryListClick(event) {
             const target = event.target;
             const viewTarget = target.closest('.history-item-view');
@@ -862,22 +1008,23 @@
             }
         }
         
+        // Save current generation to history
         async function saveToHistory(product, content, details, fullResImageBase64, fullResImageType) {
             const existingIndex = history.findIndex(item => item.product === product);
-            if (existingIndex > -1) history.splice(existingIndex, 1);
+            if (existingIndex > -1) history.splice(existingIndex, 1); // Remove existing entry if product name matches
             
             let thumbnailImage = { base64: null, type: null };
             if (fullResImageBase64 && fullResImageType) {
                 const dataUrl = `data:${fullResImageType};base64,${fullResImageBase64}`;
                 try {
-                    thumbnailImage = await compressImage(dataUrl, 200, 200, 0.7);
+                    thumbnailImage = await compressImage(dataUrl, 200, 200, 0.7); // Compress image for thumbnail
                 } catch (e) {
                     console.error("Image compression for history failed:", e);
                     thumbnailImage = { base64: null, type: null };
                 }
             }
 
-            history.unshift({
+            history.unshift({ // Add to the beginning of history
                 product,
                 content,
                 details,
@@ -886,15 +1033,17 @@
             });
 
             try {
-                if (history.length > 50) history.pop();
-                localStorage.setItem('asiProductHistory', JSON.stringify(history));
+                if (history.length > 50) history.pop(); // Keep history limited to 50 items
+                localStorage.setItem('asiProductHistory', JSON.stringify(history)); // Save to local storage
             } catch (e) {
                 showMessage('历史记录存储失败，可能已满。', 'error');
                 console.error("Failed to save history to localStorage:", e);
-                history.shift();
+                history.shift(); // Remove the added item if storage fails
             }
-            renderHistory();
+            renderHistory(); // Re-render history list
         }
+
+        // Update content of an existing history item
         async function updateHistoryContent(product, chineseTitle, newContent) {
              const existingIndex = history.findIndex(item => item.product === product);
             if (existingIndex > -1) {
@@ -902,6 +1051,7 @@
                 const englishTitle = REVERSE_ENGLISH_TITLE_MAP[chineseTitle];
                 if (!englishTitle) return;
 
+                // Use regex to find and replace the specific section content
                 const regex = new RegExp(`(### ${englishTitle}\\n---)([\\s\\S]*?)(?=\\n###|$)`);
                 const updatedContent = currentItem.content.replace(regex, `$1\n${newContent.trim()}\n`);
                 history[existingIndex].content = updatedContent;
@@ -912,11 +1062,14 @@
                 }
             }
         }
+
+        // View a history item (load its content into the main input/output areas)
         function viewHistoryItem(index) {
             const item = history[index];
             if (item) {
-                clearAllInputs();
-                
+                clearAllInputs(); // Clear current inputs
+
+                // Populate input fields
                 document.getElementById('productIdea').value = item.product || '';
                 if(item.details){
                     document.getElementById('productMaterial').value = item.details.material || '';
@@ -926,19 +1079,21 @@
                     document.getElementById('referenceKeywords').value = item.details.referenceKeywords || '';
                 }
 
-                const imageB64 = item.originalImageBase64 || item.imageBase64;
+                const imageB64 = item.originalImageBase64 || item.imageBase64; // Use original if available, else thumbnail
                 const imageT = item.originalImageType || item.imageType;
                 
                 if (imageB64 && imageT) {
                     const dataUrl = `data:${imageT};base64,${imageB64}`;
-                    processImageFile(dataURLtoFile(dataUrl, item.product)); 
+                    processImageFile(dataURLtoFile(dataUrl, item.product)); // Load image
                 }
                 
-                displayResult(item.content, 'all', item.product);
-                generateAllBtn.innerHTML = '🚀 重新生成';
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                displayResult(item.content, 'all', item.product); // Display generated content
+                generateAllBtn.innerHTML = '🚀 重新生成'; // Update button text
+                window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top
             }
         }
+
+        // Clear all history
         function clearHistory() {
             history = [];
             localStorage.removeItem('asiProductHistory');
@@ -946,23 +1101,31 @@
             showMessage('历史记录已清空。', 'success');
         }
         
+        // Show/hide loading indicator
         function showLoading(isLoading) {
             loader.classList.toggle('hidden', !isLoading);
             if (isLoading) { placeholder.classList.add('hidden'); resultDiv.innerHTML = ''; }
         }
         
+        // Build HTML for a single content section
         function buildSectionHtml(chineseTitle, rawContent) {
-            const content = enforceContentLimits(chineseTitle, rawContent);
+            let content = enforceContentLimits(chineseTitle, rawContent);
+
+            // Apply cm to inch conversion for '概要' (Summary) if it contains cm
+            if (chineseTitle === '概要') {
+                content = convertCmToInches(content);
+            }
 
             const regenType = Object.keys(REGEN_TYPE_MAP).find(key => REGEN_TYPE_MAP[key] === chineseTitle);
             
             const validationResult = validateContent(chineseTitle, content);
             const status = getValidationStatus(validationResult);
 
-            const lockButton = `<button class="lock-btn action-btn" data-type="${regenType}" title="点击锁定"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M11 1a2 2 0 0 0-2 2v4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h5V3a3 3 0 0 1 6 0v4a.5.5 0 0 1-1 0V3a2 2 0 0 0-2-2"/></svg><span>解锁</span></button>`;
-            const translateButton = `<button class="translate-btn action-btn" title="在谷歌翻译中打开"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M4.545 6.714 4.11 8H3l1.862-5h1.284L8 8H6.833l-.435-1.286zm1.634-2.736L5.5 1.956h-.043l-.697 2.022z"/><path d="M0 2a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v3h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-3H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zm7.138 9.995c.193.301.402.583.63.846-.748.575-1.673 1.001-2.768 1.292.178.217.451.635.555.867 1.125-.359 2.08-.844 2.886-1.494.17.302.278.632.365.992.508-.283.92-1.075 1.21-1.96.28-.85.455-1.85.508-2.934h-1.025c-.05.88-.17 1.56-.34 2.11a2.7 2.7 0 0 1-.62 1.087c-.22.252-.494.456-.79.612z"/></svg><span>翻译</span></button>`;
+            // Buttons for interaction
+            const lockButton = `<button class="lock-btn action-btn" title="点击锁定" data-type="${regenType}"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2"/></svg><span>解锁</span></button>`;
+            const translateButton = `<button class="translate-btn action-btn" title="在谷歌翻译中打开"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M4.545 6.714 4.11 8H3l1.862-5h1.284L8 8H6.833l-.435-1.286zm1.634-2.736L5.5 1.956h-.043l-.697 2.022z"/><path d="M0 2a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v3h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-3H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v7a1 1 0 = 0 1 1h7a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zm7.138 9.995c.193.301.402.583.63.846-.748.575-1.673 1.001-2.768 1.292.178.217.451.635.555.867 1.125-.359 2.08-.844 2.886-1.494.17.302.278.632.365.992.508-.283.92-1.075 1.21-1.96.28-.85.455-1.85.508-2.934h-1.025c-.05.88-.17 1.56-.34 2.11a2.7 2.7 0 0 1-.62 1.087c-.22.252-.494.456-.79.612z"/></svg><span>翻译</span></button>`;
             const copyButton = `<button class="copy-btn action-btn" title="复制内容"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M5.5 1a.5.5 0 0 1 .5.5V2h6v-.5a.5.5 0 0 1 1 0V2A1.5 1.5 0 0 1 11.5 3.5h-7A1.5 1.5 0 0 1 3 2V1.5a.5.5 0 0 1 .5-.5zM5 3.5a.5.5 0 0 0 .5.5h5a.5.5 0 0 0 0-1h-5a.5.5 0 0 0-.5.5"/></svg><span>复制</span></button>`;
-            const regenButton = `<button class="regenerate-btn action-btn" data-type="${regenType}" title="重新生成此版块"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg><span>重新生成</span></button>`;
+            const regenButton = `<button class="regenerate-btn action-btn" data-type="${regenType}" title="重新生成此版块"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg><span>重新生成</span>`;
             const counterDiv = createCounterDiv(chineseTitle, content);
 
             return `<div class="section-wrapper" id="section-${chineseTitle.replace(/\s/g, '-')}">
@@ -978,6 +1141,7 @@
                      </div>`;
         }
 
+        // Parse new AI generated text and merge with existing locked content
         function parseAndMergeResults(newText, lockedContentMap, productIdea) {
             let html = `<h3>${productIdea}</h3>`;
             const allTypes = ['title', 'description', 'summary', 'keywords'];
@@ -989,7 +1153,7 @@
                 const cleanText = newText.substring(startIndex);
                 const sections = cleanText.split(/### (Title|Summary|Description|Keywords)\n---/g).filter(s => s && s.trim() !== '');
                 for (let i = 0; i < sections.length; i += 2) {
-                     if (sections[i + 1] === undefined) continue;
+                     if (sections[i + 1] === undefined) continue; // Skip if content is missing
                      const englishTitle = sections[i].trim();
                      const regenType = englishTitle.toLowerCase();
                      newSections.set(regenType, sections[i+1].trim());
@@ -998,17 +1162,18 @@
 
             allTypes.forEach(regenType => {
                 if (lockedContentMap.has(regenType)) {
-                    html += lockedContentMap.get(regenType);
+                    html += lockedContentMap.get(regenType); // Use locked content
                 } else {
                     const content = newSections.get(regenType) || '生成失败或无内容返回';
                     const chineseTitle = REGEN_TYPE_MAP[regenType];
-                    html += buildSectionHtml(chineseTitle, content);
+                    html += buildSectionHtml(chineseTitle, content); // Build new section HTML
                 }
             });
 
             return html;
         }
 
+        // Display the generated result in the output area
         function displayResult(text, type, productIdea = '') {
             placeholder.classList.add('hidden');
             let html = `<h3>${productIdea}</h3>`;
@@ -1020,6 +1185,7 @@
                 html += `<h4>AI 原始回复 (格式错误)</h4><div class="content-block">${text || '无内容返回'}</div>`;
             } else {
                 const cleanText = text.substring(startIndex);
+                // Split by markdown headers
                 const sections = cleanText.split(/### (Title|Summary|Description|Keywords)\n---/g).filter(s => s && s.trim() !== '');
                 
                 for (let i = 0; i < sections.length; i += 2) {
@@ -1030,12 +1196,13 @@
                     }
                     const content = sections[i + 1].trim();
                     const chineseTitle = ENGLISH_TITLE_MAP[englishTitle] || englishTitle;
-                    html += buildSectionHtml(chineseTitle, content);
+                    html += buildSectionHtml(chineseTitle, content); // Build HTML for each section
                 }
             }
             resultDiv.innerHTML = html;
         }
 
+        // Convert displayed HTML content back to structured plain text for history
         function convertHtmlToStructuredText(htmlContent) {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = htmlContent;
@@ -1050,6 +1217,7 @@
             return structuredText.trim();
         }
 
+        // Show a temporary message box
         function showMessage(message, type = 'success') {
             messageText.textContent = message;
             messageBox.className = 'fixed top-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg fade-in';
@@ -1060,13 +1228,15 @@
             setTimeout(() => { messageBox.classList.add('hidden'); }, 3000);
         }
 
+        // Convert Data URL to File object
         function dataURLtoFile(dataurl, filename) {
             var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
                 bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
-            while(n--){ u8arr[n] = bstr.charCodeAt(n); }
+            while(n--){ u8arr[n] = bstr.charCodeAt(n); } 
             return new File([u8arr], filename, {type:mime});
         }
         
+        // Parse content string into an object for Excel export
         function parseContentToObject(contentString) {
             const data = {
                 '产品名称': '', '产品描述': '', '概要': '', '关键词': '',
@@ -1086,6 +1256,7 @@
             return data;
         }
 
+        // Export history items to an Excel file
         function exportToExcel(items) {
             if (!items || items.length === 0) {
                 showMessage('没有可导出的历史记录。', 'info');
@@ -1107,6 +1278,7 @@
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, 'ASI Products');
 
+            // Set column widths for better readability
             worksheet["!cols"] = [
                 { wch: 30 }, { wch: 50 }, { wch: 80 }, { wch: 50 }, { wch: 80 },
             ];
@@ -1128,6 +1300,7 @@
             showMessage('导出成功！', 'success');
         }
 
+        // Call Gemini API with retry logic
         async function callGeminiAPI(prompt, base64Data, mimeType) {
             const userApiKey = localStorage.getItem('geminiApiKey');
             if (!userApiKey) {
@@ -1145,49 +1318,82 @@
                 generationConfig: { temperature: 0.6, topP: 1.0, maxOutputTokens: 8192 }
             };
 
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            
-            if (!response.ok) {
-                let errorBody = '无法读取错误详情';
+            const MAX_RETRIES = 3; // Maximum number of retries
+            const BASE_DELAY_MS = 1000; // Base delay in milliseconds (1 second)
+
+            for (let i = 0; i <= MAX_RETRIES; i++) {
                 try {
-                    const errorJson = await response.json();
-                    errorBody = errorJson?.error?.message || response.statusText;
-                     if(errorJson?.error?.status === 'INVALID_ARGUMENT' && errorJson?.error?.message.includes("API_KEY_INVALID")){
-                         throw new Error('API密钥无效 (INVALID_ARGUMENT)。请检查您的密钥。');
-                     }
-                } catch(e) {
-                    if (e.message.includes('API密钥无效')) throw e;
-                    try { errorBody = await response.text(); } catch(e2) { /* ignore */}
-                }
-                
-                throw new Error(`API请求失败: ${response.status} ${errorBody}`);
-            }
+                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    
+                    if (!response.ok) {
+                        let errorBody = '无法读取错误详情';
+                        try {
+                            const errorJson = await response.json();
+                            errorBody = errorJson?.error?.message || response.statusText;
+                            
+                            // Specific handling for API key invalidation
+                            if(errorJson?.error?.status === 'INVALID_ARGUMENT' && errorJson?.error?.message.includes("API_KEY_INVALID") || errorBody.includes('API key expired')){
+                                throw new Error('API密钥无效 (INVALID_ARGUMENT)。请检查您的密钥。');
+                            }
 
-            const result = await response.json();
-            const candidate = result.candidates?.[0];
-            
-            if (candidate?.content?.parts?.[0]?.text) {
-                 if (candidate.finishReason && candidate.finishReason !== 'STOP') {
-                    console.warn(`API response may be partial. Reason: ${candidate.finishReason}`);
-                 }
-                 return candidate.content.parts[0].text.trim();
-            }
+                            // Retry logic for 5xx errors or specific overload messages
+                            if (response.status >= 500 || errorBody.includes('The model is overloaded')) {
+                                if (i < MAX_RETRIES) {
+                                    const delay = BASE_DELAY_MS * Math.pow(2, i); // Exponential backoff
+                                    console.warn(`API请求失败: ${response.status} ${errorBody}. 正在重试... (延迟 ${delay / 1000}秒)`);
+                                    await new Promise(resolve => setTimeout(resolve, delay));
+                                    continue; // Retry the request
+                                }
+                            }
+                        } catch(e) {
+                            if (e.message.includes('API密钥无效')) throw e; // Re-throw API key error immediately
+                            try { errorBody = await response.text(); } catch(e2) { /* ignore */}
+                        }
+                        // If not a retryable error or max retries reached, throw the error
+                        throw new Error(`API请求失败: ${response.status} ${errorBody}`);
+                    }
 
-            if (candidate) {
-                const finishReason = candidate.finishReason || '未知';
-                switch (finishReason) {
-                    case 'SAFETY':
-                        throw new Error("内容可能违反了安全策略，请修改输入后重试。");
-                    case 'MAX_TOKENS':
-                        throw new Error("内容生成超出最大长度限制，请尝试简化输入或参考文案。");
-                    case 'RECITATION':
-                        throw new Error("内容因引用受版权保护的材料而被阻止。");
-                    default:
-                        throw new Error(`AI未能生成有效内容。原因: ${finishReason}`);
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+                    
+                    if (candidate?.content?.parts?.[0]?.text) {
+                         if (candidate.finishReason && candidate.finishReason !== 'STOP') {
+                            console.warn(`API response may be partial. Reason: ${candidate.finishReason}`);
+                         }
+                         return candidate.content.parts[0].text.trim();
+                    }
+
+                    if (candidate) {
+                        const finishReason = candidate.finishReason || '未知';
+                        switch (finishReason) {
+                            case 'SAFETY':
+                                throw new Error("内容可能违反了安全策略，请修改输入后重试。");
+                            case 'MAX_TOKENS':
+                                throw new Error("内容生成超出最大长度限制，请尝试简化输入或参考文案。");
+                            case 'RECITATION':
+                                throw new Error("内容因引用受版权保护的材料而被阻止。");
+                            default:
+                                throw new Error(`AI未能生成有效内容。原因: ${finishReason}`);
+                        }
+                    }
+                    
+                    throw new Error("AI未能生成有效内容，API未返回任何候选结果。");
+
+                } catch (error) {
+                    // If the error is an API key error, re-throw it immediately without retry
+                    if (error.message.includes('API密钥无效')) {
+                        throw error;
+                    }
+                    // For other errors, if max retries reached, re-throw
+                    if (i === MAX_RETRIES) {
+                        throw error;
+                    }
+                    // Otherwise, log and continue to the next retry (handled by the loop)
+                    console.error(`尝试 ${i + 1}/${MAX_RETRIES + 1} 失败:`, error.message);
                 }
             }
-            
-            throw new Error("AI未能生成有效内容，API未返回任何候选结果。");
+            // Should not be reached, but as a fallback
+            throw new Error("API请求在多次重试后仍然失败。");
         }
     </script>
 </body>
